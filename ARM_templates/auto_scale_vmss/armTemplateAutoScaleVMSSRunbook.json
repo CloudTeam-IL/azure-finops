@@ -1,0 +1,222 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "AutomationAccount": {
+            "type": "string",
+            "metadata": {
+                "description": "Specify the name of the Automation Account the runbook will be deployed to."
+            },
+            "defaultValue": "vmss"
+        },
+        "tagKey": {
+            "type": "string",
+            "metadata": {
+                "displayName": "Tag Name",
+                "description": "Name of the tag, such as 'environment' for excluding the VMSS"
+            },
+            "defaultValue": "Prod"
+        },
+        "tagValue": {
+            "type": "string",
+            "metadata": {
+                "displayName": "Tag Value",
+                "description": "Value of the tag, such as 'True' for excluding the VMSS"
+            },
+            "defaultValue": "true"
+        },
+        "TestSubID": {
+            "type": "string",
+            "metadata": {
+                "displayName": "Subscription ID for tests",
+                "description": "subscription id for test run"
+            },
+            "defaultValue": "123456789"
+        },
+        "blobContainerName": {
+            "type": "string",
+            "metadata": {
+                "displayName": "Container Name",
+                "description": "Name of your blob container where the output to be saved to"
+            },
+            "defaultValue": "vmss"
+        },
+        "blobContainerConnectionString": {
+            "type": "string",
+            "metadata": {
+                "displayName": "Connection String",
+                "description": "connection string to the container blob"
+            },
+            "defaultValue": ""
+        },
+        "name": {
+            "type": "string",
+            "metadata": {
+                "displayName": "Name",
+                "description": "the runbook prefix name"
+            },
+            "defaultValue": "autoscale-vmss-"
+        },
+        "automationRegion": {
+            "type": "string",
+            "allowedValues": [
+                "westeurope",
+                "southeastasia",
+                "eastus2",
+                "eastus",
+                "southcentralus",
+                "japaneast",
+                "northeurope",
+                "canadacentral",
+                "australiasoutheast",
+                "centralindia",
+                "westcentralus",
+                "usgovvirginia",
+                "usgovtexas",
+                "usgovarizona"
+            ],
+            "metadata": {
+                "description": "Specify the region for your automation account"
+            }
+        }
+    },
+    "resources": [
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('AutomationAccount'), '/', parameters('name'), '-list')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "list all manual scale vmss except AKS",
+                "runbookType": "Python3",
+                "logProgress": false,
+                "logVerbose": false,
+                "publishContentLink": {
+                    "uri": "https://cloudteam-arm-templates.s3.amazonaws.com/autoscale-vmss/vmss-list-manual-csv.py"
+                }
+            }
+        },
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('AutomationAccount'), '/', parameters('name'), '-list-sub-test')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "list all manual scale vmss except AKS for a specific test subscription",
+                "runbookType": "Python3",
+                "logProgress": false,
+                "logVerbose": false,
+                "publishContentLink": {
+                    "uri": "https://cloudteam-arm-templates.s3.amazonaws.com/autoscale-vmss/vmss-list-manual-csv-sub.py"
+                }
+            }
+        },
+        {
+             "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('AutomationAccount'), '/', parameters('name'), '-modify')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "deploy autoscale foe manual VMSS that not excluded by tag and not AKS",
+                "runbookType": "Python3",
+                "logProgress": false,
+                "logVerbose": false,
+                "publishContentLink": {
+                    "uri": "https://cloudteam-arm-templates.s3.amazonaws.com/autoscale-vmss/vmss-deploy-autoscale-csv.py"
+                }
+            }
+        },
+        {
+             "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('AutomationAccount'), '/', parameters('name'), '-modify-sub-test')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "deploy autoscale foe manual VMSS that not excluded by tag and not AKS for the selected test subscription id",
+                "runbookType": "Python3",
+                "logProgress": false,
+                "logVerbose": false,
+                "publishContentLink": {
+                    "uri": "https://cloudteam-arm-templates.s3.amazonaws.com/autoscale-vmss/vmss-deploy-autoscale-csv-sub.py"
+                }
+            }
+        },
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "name": "[concat(parameters('AutomationAccount'), '/BLOB_CONTAINER')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "output container name",
+                "isEncrypted": false,
+                "value": "[concat('\"',parameters('blobContainerName'),'\"')]"
+            }
+        },
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "name": "[concat(parameters('AutomationAccount'), '/CONNECTION_STRING')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "output container conn string",
+                "isEncrypted": false,
+                "value": "[concat('\"',parameters('blobContainerConnectionString'),'\"')]"
+           }
+        },
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "name": "[concat(parameters('AutomationAccount'), '/EXCLUDE_TAG_KEY')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "tag key for exclude vmss modify",
+                "isEncrypted": false,
+                "value": "[concat('\"',parameters('tagKey'),'\"')]"
+            }
+        },
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "name": "[concat(parameters('AutomationAccount'), '/EXCLUDE_TAG_VALUE')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "tag value for exclude vmss modify",
+                "isEncrypted": false,
+                "value": "[concat('\"',parameters('tagValue'),'\"')]"
+            }
+    	},
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/variables",
+            "name": "[concat(parameters('AutomationAccount'), '/TEST_SUB_ID')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "description": "subscription id for test run",
+                "isEncrypted": false,
+                "value": "[concat('\"',parameters('TestSubID'),'\"')]"
+            }
+    	},
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/python3Packages",
+            "name": "[concat(parameters('AutomationAccount'), '/azure_storage_blob')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "contentLink": {
+                  "uri": "https://cloudteam-arm-templates.s3.amazonaws.com/autoscale-vmss/azure_storage_blob-12.8.1-py2.py3-none-any.whl"
+                }
+              }
+        },
+        {
+            "apiVersion": "2020-01-13-preview",
+            "type": "Microsoft.Automation/automationAccounts/python3Packages",
+            "name": "[concat(parameters('AutomationAccount'), '/azure_core')]",
+            "location": "[parameters('automationRegion')]",
+            "properties": {
+                "contentLink": {
+                  "uri": "https://cloudteam-arm-templates.s3.amazonaws.com/autoscale-vmss/azure_core-1.16.0-py2.py3-none-any.whl"
+            }
+          }
+        }
+    ]
+}

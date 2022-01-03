@@ -1,0 +1,28 @@
+{
+    "mode": "All",
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "tags['created_on_date']",
+            "exists": "false"
+          }
+        ]
+      },
+      "then": {
+        "effect": "modify",
+        "details": {
+          "roleDefinitionIds": [
+            "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+          ],
+          "operations": [
+            {
+              "operation": "addOrReplace",
+              "field": "tags['created_on_date']",
+              "value": "[utcNow()]"
+            }
+          ]
+        }
+      }
+    }
+  }

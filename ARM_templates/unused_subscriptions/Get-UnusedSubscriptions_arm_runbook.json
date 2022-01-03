@@ -1,0 +1,32 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "automationAccountName": {
+            "type": "string",
+            "metadata": {
+                "description" : "automation account name..."
+            }
+        }
+    },
+
+
+    "resources" : [
+        {
+            "apiVersion": "2019-06-01",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('automationAccountName'), '/Get-UnusedSubscriptions')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "description": "a runbook to find and get unused subscriptions",
+                "runbookType": "PowerShell",
+                "logProgress": false,
+                "logVerbose": true,
+                "publishContentLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/unused_subscriptions/Get-UnusedSubscriptions.ps1",
+                    "version": "1"
+                }
+            }
+        }
+    ]
+}
