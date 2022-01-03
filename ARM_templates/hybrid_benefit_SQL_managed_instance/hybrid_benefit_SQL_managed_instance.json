@@ -1,0 +1,96 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "metadata": {
+      "_generator": {
+        "name": "bicep",
+        "version": "0.4.1.14562",
+        "templateHash": "2350252618174097128"
+      }
+    },
+    "parameters": {
+      "targetMG": {
+        "type": "string",
+        "metadata": {
+          "description": "Target Management Group"
+        }
+      },
+      "Policy_Name": {
+        "type": "string",
+        "metadata": {
+          "description": "Name of the policy"
+        }
+      },
+      "role_defenition": {
+        "type": "string",
+        "metadata": {
+          "description": "Role definition ID to apply"
+        }
+      }
+    },
+    "functions": [],
+    "variables": {
+      "mgScope": "[tenantResourceId('Microsoft.Management/managementGroups', parameters('targetMG'))]"
+    },
+    "resources": [
+      {
+        "type": "Microsoft.Authorization/policyDefinitions",
+        "apiVersion": "2020-03-01",
+        "name": "[parameters('Policy_Name')]",
+        "properties": {
+          "policyType": "Custom",
+          "mode": "All",
+          "parameters": {},
+          "policyRule": {
+            "if": {
+              "allOf": [
+                {
+                  "field": "type",
+                  "in": [
+                    "Microsoft.Sql/managedInstances"
+                  ]
+                },
+                {
+                  "field": "Microsoft.Sql/managedInstances/licenseType",
+                  "notEquals": "BasePrice"
+                }
+              ]
+            },
+            "then": {
+              "effect": "modify",
+              "details": {
+                "roleDefinitionIds": [
+                 "[parameters('role_defenition')]"
+                ],
+                "conflictEffect": "audit",
+                "operations": [
+                  {
+                    "operation": "addOrReplace",
+                    "field": "Microsoft.Sql/managedInstances/licenseType",
+                    "value": "BasePrice"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "Microsoft.Authorization/policyAssignments",
+        "apiVersion": "2020-03-01",
+        "name": "[parameters('Policy_Name')]",
+        "location": "eastus",
+        "identity": {
+          "type": "SystemAssigned"
+        },
+        "properties": {
+          "scope": "[variables('mgScope')]",
+          "policyDefinitionId": "[extensionResourceId(variables('mgScope'), 'Microsoft.Authorization/policyDefinitions', parameters('Policy_Name'))]"
+        },
+        "dependsOn": [
+          "[format('Microsoft.Authorization/policyDefinitions/{0}', parameters('Policy_Name'))]"
+        ]
+      }
+    ]
+  }
+  

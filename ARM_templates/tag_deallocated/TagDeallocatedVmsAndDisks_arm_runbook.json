@@ -1,0 +1,42 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "automationAccountName": {
+            "type": "string",
+            "metadata": {
+                "description": "automation account name..."
+            }
+
+        },
+
+        "location": {
+            "type": "string",
+            "metadata": {
+                "description": "location for the runbook"
+            }
+        }
+    },
+
+
+
+
+    "resources": [
+        {
+            "apiVersion": "2019-06-01",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('automationAccountName'), '/tag_deallocated')]",
+            "location": "[parameters('location')]",
+            "properties": {
+                "description": "a runbook to tag all deallocated disks",
+                "runbookType": "PowerShell",
+                "logProgress": false,
+                "logVerbose": true,
+                "publishContentLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/tag_deallocated/TagDeallocatedVmsAndDisks.ps1",
+                    "version": "1"
+                }
+            }
+        }
+    ]
+}

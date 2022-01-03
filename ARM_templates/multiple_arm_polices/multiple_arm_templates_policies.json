@@ -1,0 +1,158 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "targetMG": {
+            "type": "object",
+            "metadata": {
+                "description": "Target Management Group"
+            },
+            "defaultValue": {
+                "mgmt_for_hb_sql": "",
+                "mgmt_for_hb_vms": "",
+                "mgmt_for_hb": "",
+                "mgmt_for_created_by":""
+
+            }
+        },
+        "Policy_Name": {
+            "type": "object",
+            "metadata": {
+                "description": "Policy Name"
+            },
+            "defaultValue": {
+                "policy_name_hb_sql": "",
+                "policy_name_hb_vms": "",
+                "policy_name__hb_managed_sql": "",
+                "policy_name_created_by": ""
+
+            }
+        },
+        "role_defenition": {
+            "type": "string",
+            "metadata": {
+                "description": "Role definition ID to apply"
+            }
+        }
+    },
+    "variables": {
+        "role_defenition": "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "linkedTemplate-1",
+            "location": "eastus",
+
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/hybrid_benefit_SQL/hybrid_benefit_sql.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "targetMG": {
+                        "value": "[parameters('targetMG').mgmt_for_hb_sql]"
+                    },
+                    "Policy_Name": {
+                        "value": "[parameters('Policy_Name').policy_name_hb_sql]"
+                    },
+                    "role_defenition": {
+                        "value": "[parameters('role_defenition')]"
+                    }
+                }
+            }
+
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "linkedTemplate-2",
+            "location": "eastus",
+
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/hybrid_benefit_SQL_managed_instance/hybrid_benefit_SQL_managed_instance.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "targetMG": {
+                        "value": "[parameters('targetMG').mgmt_for_hb]"
+                    },
+                    "Policy_Name": {
+                        "value": "[parameters('Policy_Name').policy_name__hb_managed_sql]"
+                    },
+                    "role_defenition": {
+                        "value": "[parameters('role_defenition')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "linkedTemplate-3",
+            "location": "eastus",
+
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/hybrid_benefit_policy_Vm_Vmss/ARM_for_hybrid_benefit.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "targetMG": {
+                        "value": "[parameters('targetMG').mgmt_for_hb_vms]"
+                    },
+                    "Policy_Name": {
+                        "value": "[parameters('Policy_Name').policy_name_hb_vms]"
+                    },
+                    "role_defenition": {
+                        "value": "[parameters('role_defenition')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2021-04-01",
+            "name": "linkedTemplate-4",
+            "location": "eastus",
+
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "templateLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/tag_created_at/tag_create_at_arm.json",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "targetMG": {
+                        "value": "[parameters('targetMG').mgmt_for_created_by]"
+                    },
+                    "Policy_Name": {
+                        "value": "[parameters('Policy_Name').policy_name_created_by]"
+                    },
+                    "role_defenition": {
+                        "value": "[parameters('role_defenition')]"
+                    }
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

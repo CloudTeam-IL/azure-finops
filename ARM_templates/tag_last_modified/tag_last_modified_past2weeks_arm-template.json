@@ -1,0 +1,34 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "automationAccountName": {
+            "type": "string",
+            "metadata": {
+                "description" : "automation account name..."
+            }
+
+        }
+
+    },
+
+
+    "resources" : [
+        {
+            "apiVersion": "2019-06-01",
+            "type": "Microsoft.Automation/automationAccounts/runbooks",
+            "name": "[concat(parameters('automationAccountName'), '/tag_last_modified_past2weeks')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "description": "a runbook to tag resources with caller id that modified the resurce in the past two weeks",
+                "runbookType": "PowerShell",
+                "logProgress": false,
+                "logVerbose": true,
+                "publishContentLink": {
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/tag_last_modified/tag_last_modified_past2weeks.ps1",
+                    "version": "1"
+                }
+            }
+        }
+    ]
+}

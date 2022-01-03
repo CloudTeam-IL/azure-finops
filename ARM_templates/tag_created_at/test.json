@@ -1,0 +1,96 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-08-01/managementGroupDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "role_defenition": {
+            "type": "string",
+            "metadata": {
+                "description": "role with permission to tag"
+            }
+        },
+        "Policy_Name": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the policy"
+            }
+        },
+        "targetMG": {
+            "type": "string",
+            "metadata": {
+                "description": "Target Management Group"
+            }
+        },
+        "utcNow": {
+            "type": "string",
+                        "metadata": {
+                "description": "Target Management Group"
+            },
+            "defaultValue": "[utcNow('d')]"
+            
+            
+        }
+    },
+    "functions": [],
+    "variables": {
+        "mgScope": "[tenantResourceId('Microsoft.Management/managementGroups', parameters('targetMG'))]"
+    },
+
+    "resources": [
+        {
+            "type": "Microsoft.Authorization/policyDefinitions",
+            "name": "[parameters('Policy_Name')]",
+            "apiVersion": "2019-09-01",
+            "properties": {
+                "displayName": "[parameters('Policy_Name')]",
+                "policyType": "Custom",
+                "description": "tag resources with a timestamp on creation",
+                "metadata": {
+                    "category": "General"
+                },
+                "mode": "All",
+                "policyRule": {
+                    "if": {
+                        "allOf": [
+                            {
+                                "field": "tags['created_at']",
+                                "exists": "false"
+                            }
+
+                        ]
+                    },
+                    "then": {
+                        "effect": "modify",
+                        "details": {
+                            "roleDefinitionIds": [
+                                "[parameters('role_defenition')]"
+                            ],
+                            "operations": [
+                                {
+                                    "operation": "addOrReplace",
+                                    "field": "tags['created_at']",
+                                    "value": "[utcNow('d')]"
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Authorization/policyAssignments",
+            "apiVersion": "2020-03-01",
+            "name": "[parameters('Policy_Name')]",
+            "location": "eastus",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "properties": {
+                "scope": "[variables('mgScope')]",
+                "policyDefinitionId": "[extensionResourceId(variables('mgScope'), 'Microsoft.Authorization/policyDefinitions', parameters('Policy_Name'))]"
+            },
+            "dependsOn": [
+                "[format('Microsoft.Authorization/policyDefinitions/{0}', parameters('Policy_Name'))]"
+            ]
+        }
+    ]
+} 
