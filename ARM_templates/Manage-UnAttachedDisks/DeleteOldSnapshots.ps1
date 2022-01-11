@@ -6,6 +6,8 @@ Param
     [Parameter (Mandatory = $false)]
     [ValidateSet(“ManagedIdentity”,”ServicePrincipal”)]
     [String] $AccountType = "ManagedIdentity",
+    [Parameter(Mandatory = $false)]
+    [String] $AccountName = "",
     [Parameter (Mandatory=$false)]
     [Int] $timeToKill = 90,
     [Parameter (Mandatory=$true)]
@@ -54,8 +56,14 @@ function ConnectAsService {
  dosnt return anything
 #>
 function ConnectAsIdentity {
-    $ID = Get-AutomationVariable -Name #<Identity Name>
-	Write-Output "----Identity connection-----"
+    if($AccountName){
+        $ID = Get-AutomationVariable -Name $AccountName
+    }
+    else
+    {
+        $ID = ""
+    }
+    Write-Output "----Identity connection-----"
     Disable-AzContextAutosave -Scope Process | Out-Null
     if($ID)
     {
