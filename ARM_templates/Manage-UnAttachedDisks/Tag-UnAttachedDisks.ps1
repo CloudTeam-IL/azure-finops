@@ -11,7 +11,7 @@ Param
     [Parameter(Mandatory = $false)]
     [String] $AccountName = "",
     [Parameter (Mandatory=$false)]
-    [Int] $TimeAlive = 89,
+    [Int] $TimeAlive = 7,
     [Parameter (Mandatory=$true)]
     [String] $SubForLog,
     [Parameter (Mandatory=$true)]
