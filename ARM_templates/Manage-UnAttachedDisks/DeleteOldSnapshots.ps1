@@ -9,7 +9,7 @@ Param
     [Parameter(Mandatory = $false)]
     [String] $AccountName = "",
     [Parameter (Mandatory=$false)]
-    [Int] $timeToKill = 90,
+    [Int] $timeToKill = 89,
     [Parameter (Mandatory=$true)]
     [String] $SubForLog,
     [Parameter (Mandatory=$true)]
@@ -214,7 +214,7 @@ foreach ($sub in $allSubs)
     ForEach($snap in $allSnapShots)
     {
         #checking if the tag on the snapshot is from 90 days
-        if ($snap.Tags.MarkedForDelete -eq $DaysToRemove) {
+        if ($snap.Tags.Candidate -eq $DaysToRemove) {
             #if it is then it delete the snapshot
             DeleteSnapshotAndLog -snap $snap -timeToKill $timeToKill
         }
