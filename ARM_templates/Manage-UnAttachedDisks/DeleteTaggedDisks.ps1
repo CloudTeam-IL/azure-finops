@@ -168,7 +168,7 @@ function CreateSnapshot {
 	#creating the new snapshot
 	$newSnapshot = New-AzSnapshot -Snapshot $snapshot -SnapshotName $snapshotName -ResourceGroupName $rg
 	#adding tag to delete after 90 days
-	Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"MarkedForDelete"=$CurrentDate} -Operation Merge
+	Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"Candidate"=$CurrentDate} -Operation Merge
 	return $newSnapshot
 }
 
@@ -246,7 +246,7 @@ foreach ($sub in $allSubs)
 	foreach ($disk in $allDisks)
 	{
 		#if the disk have the deletion tag
-		if ($disk.Tags.DeleteThisDisk -eq "UpForDelete") {
+		if ($disk.Tags.Candidate -eq "DeleteUnAttached") {
 			$rg = $disk.ResourceGroupName
 			$loc = $disk.Location
 			$snapshotName = "$($disk.Name)_snapShot"
