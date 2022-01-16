@@ -11,7 +11,7 @@ Param
     [Parameter(Mandatory = $false)]
     [String] $AccountName = "",
     [Parameter (Mandatory=$false)]
-    [Int] $TimeAlive = 7,
+    [Int] $TimeAlive = 89,
     [Parameter (Mandatory=$true)]
     [String] $SubForLog,
     [Parameter (Mandatory=$true)]
@@ -159,10 +159,10 @@ function TagDisk {
         $sub,
         $DateToLog
     )
-    Update-AzTag -ResourceId $md.Id -Tag @{"DeleteThisDisk"="UpForDelete"} -Operation Merge #-ErrorAction Stop
+    Update-AzTag -ResourceId $md.Id -Tag @{"Candidate"="DeleteUnAttached"} -Operation Merge #-ErrorAction Stop
     Start-Sleep 5
     $md = Get-AzDisk -ResourceGroupName $md.ResourceGroupName -DiskName $md.Name
-    if ($md.Tags.DeleteThisDisk) {
+    if ($md.Tags.Candidate -eq "DeleteUnAttached") {
         Write-Output "tag success"
         $LogValues = "$($md.Id),$($md.Location),$($md.ResourceGroupName),$($sub.Name),$($DateToLog),Success`n"
         $Blob.ICloudBlob.AppendText($LogValues)  
