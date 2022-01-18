@@ -17,7 +17,7 @@
         {
             "apiVersion": "2019-06-01",
             "type": "Microsoft.Automation/automationAccounts/runbooks",
-            "name": "[concat(parameters('automationAccountName'), '/delete_unAttachedDisks_deallocatedVMs')]",
+            "name": "[concat(parameters('automationAccountName'), '/tag_unAttachedDisks_deallocatedVMs')]",
             "location": "[resourceGroup().location]",
             "properties": {
                 "description": "a runbook to tag all vms with low cpu and memory usage",
@@ -25,7 +25,7 @@
                 "logProgress": false,
                 "logVerbose": true,
                 "publishContentLink": {
-                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/delete_unattached_disks_and_vms/delete_unattached_disks_and_vms.ps1",
+                    "uri": "https://raw.githubusercontent.com/CloudHiro/azure-finops/main/ARM_templates/tag_unattached_disks_and_vms/tag_unAttachedDisks_deallocatedVMs.ps1",
                     "version": "1"
                 }
             }
