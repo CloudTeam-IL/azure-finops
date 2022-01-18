@@ -1,0 +1,62 @@
+{
+  "mode": "Indexed",
+  "policyRule": {
+    "if": {
+      "AnyOf": [
+        {
+          "count": {
+            "value": "[parameters('listOfWrongEnvironmentTags')]",
+            "name": "item",
+            "where": {
+              "field": "tags",
+              "containsKey": "[current('item')]"
+            }
+          },
+          "greater": 0
+        },
+        {
+          "count": {
+            "value": "[parameters('listOfWrongOtherTags')]",
+            "name": "item",
+            "where":{
+              "field":"tags",
+              "containsKey":"[current('item')]"
+            }
+          },
+          "greater": 0
+        },
+        {
+          "allOf":[
+            {
+              "field": "tags",
+              "containsKey": "environment"
+            },
+            {
+              "field": "tags['environment']",
+              "notIn": ["production","dev","test","dr","qa"]
+            }
+          ]
+        }
+      ]
+    },
+    "then": {
+      "effect": "audit"
+    }
+  },
+  "parameters":{
+    "listOfWrongEnvironmentTags": {
+      "type": "Array",
+      "metadata":{
+        "description": "The list of all the unwanted options for the environment tag",
+        "displayName": "Wrong Environment Tag Name"
+      }
+    },
+    "listOfWrongOtherTags": {
+      "type": "Array",
+      "metadata":{
+        "description": "The list of wrong options for the tags: owner, application, cost-center, owner-email, finops-email",
+        "displayName": "Wrong Data Tag Name"
+      }
+    }
+  }
+}
