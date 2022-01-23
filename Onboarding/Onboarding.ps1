@@ -1,5 +1,71 @@
+<#
+  .SYNOPSIS
+  CloudTeam & CloudHiro onboarding script for clients
+
+  .DESCRIPTION
+  The Onboarding.ps1 script using a CSV file and different parameters to do the following:
+  - Create a service principal
+  - Create an Azure AD group
+  - Invite external users
+  - Add users to Azure AD group
+  - Assign roles to the service principal and Azure AD group
+  For undoing and removing all those operation another paramters exist also
+
+  .PARAMETER FilePath
+  Specifies the path to the CSV file.
+
+  .PARAMETER AssignmentScope
+  Choosing on which scope to apply the role assingnment: Subscriptions or Management Groups.
+
+  .PARAMETER ExportUndoCommands
+  Undoing and removing all other script operations.
+
+  .INPUTS
+  None. You cannot pipe objects to Onboarding.ps1.
+
+  .OUTPUTS
+  Different for each of the Switch based parameters
+
+  .EXAMPLE
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -CreateServicePrincipal
+
+  .EXAMPLE
+  PS>  ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -CreateAzureADGroup
+
+  .EXAMPLE
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -InviteGuestUsers
+
+  .EXAMPLE
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AddUsersToGroup
+
+  .EXAMPLE
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AssignServicePrincipalRoles -AssignAzureADGroupRoles -AssignmentScope Subscritpions
+
+  .EXAMPLE
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AssignServicePrincipalRoles -AssignmentScope ManagementGroups
+  
+  .EXAMPLE
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AssignAzureADGroupRoles -AssignmentScope Subscritpions
+#>
+
+######################################################################################################################
+
+#  Copyright 2022 CloudTeam & CloudHiro Inc. or its affiliates. All Rights Re`ed.                                 #
+
+#  You may not use this file except in compliance with the License.                                                  #
+
+#  https://www.cloudhiro.com/AWS/TermsOfUse.php                                                                      #
+
+#  This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES                                                  #
+
+#  OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions    #
+
+#  and limitations under the License.                                                                                #
+
+######################################################################################################################
+
 Param (
-    [Parameter()]
+    [Parameter(Mandatory = $true)]
     [ValidateScript({
             if (Test-Path -Path $_ -PathType Leaf) { $true } else { throw "Could not find $_" }
         })]
@@ -25,12 +91,15 @@ Param (
 
     [Parameter(ParameterSetName = 'AssignRoles')]
     [ValidateSet('Subscriptions', "ManagementGroups")]
-    [String]$AssignmentScope
+    [String]$AssignmentScope,
+
+    [Parameter(ParameterSetName = 'ExportUndoCommands')]
+    [Switch]$ExportUndoCommands
 )
 
 # Check if connected to AzureAD and ARM if not connect 
 if (-not $(Get-AzContext -ErrorAction SilentlyContinue)) { Connect-AzAccount }
-try { Get-AzureADDomain | Out-Null } catch { Connect-AzureAD }
+try { Get-AzureADDomain | Out-Null } catch { AzureAD.Standard.Preview\Connect-AzureAD -Identity -TenantID $env:ACC_TID }
 
 # Create Service Principal
 if ($CreateServicePrincipal.IsPresent) {
@@ -228,3 +297,21 @@ if ($($AssignServicePrincipalRoles.IsPresent -or $AssignAzureADGroupRoles.IsPres
     }
 }
 
+# This will print and export the removal commands to undo the script operations
+if ($ExportUndoCommands.IsPresent) {
+    # Get and import the CSV file, after that get the data from the relevant collumn
+    $path = Get-ChildItem -Path $FilePath | Select-Object -ExpandProperty FullName
+    $CSVFile = Import-Csv -Path $path -ErrorAction SilentlyContinue
+    $servicePrincipalName = $CSVFile.ServicePrincipal | Where-Object { $_.PSObject.Properties.Value -ne '' }
+    $AzureADGroupName = $CSVFile.AzureADGroup | Where-Object { $_.PSObject.Properties.Value -ne '' }
+    $usersList = $CSVFile.Users | Where-Object { $_.PSObject.Properties.Value -ne '' }
+
+    # Add a string implementation of each removal commands to the array variable
+    $commands = @()
+    $commands += "Get-AzADServicePrincipal -DisplayName `"$servicePrincipalName`" | Remove-AzADServicePrincipal -Verbose"
+    $commands += "Get-AzADGroup -Filter `"DisplayName eq '$AzureADGroupName'`" | Remove-AzADGroup -Verbose"
+    $commands += "$($($usersList | ForEach-Object {`"'$_'"}) -join ',') | ForEach-Object { Get-AzADUser -Filter `"Mail eq '`$_' or UserPrincipalName eq '`$_'`" | Remove-AzADUser -Verbose }"
+    # Print and Export the commands array variable
+    Write-Host "Commands to undo the script operations:`n$($commands | ForEach-Object {"`r$_`n"})"
+    "Commands to undo the script operations:$($commands | ForEach-Object {"`r$_"})" | Out-File "UndoOnboardingScriptCommands.txt" -Verbose
+}
