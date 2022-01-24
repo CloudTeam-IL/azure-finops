@@ -1,0 +1,4 @@
+ServicePrincipal,AzureADGroup,Users,ServicePrincipalRoles,AzureADGroupRoles
+Costi,CloudTeam,user1@mail.com,Reader,Reader
+,,user2@mail.com,Billing Reader,Billing Reader
+,,,,Cost Management Reader
