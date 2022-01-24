@@ -15,7 +15,7 @@
   Specifies the path to the CSV file.
 
   .PARAMETER AssignmentScope
-  Choosing on which scope to apply the role assingnment: Subscriptions or Management Groups.
+  Choosing on which scope to apply the role assingnment: Subscriptions, Management Groups, Tenant.
 
   .PARAMETER ExportUndoCommands
   Undoing and removing all other script operations.
@@ -39,7 +39,7 @@
   PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AddUsersToGroup
 
   .EXAMPLE
-  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AssignServicePrincipalRoles -AssignAzureADGroupRoles -AssignmentScope Subscritpions
+  PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AssignServicePrincipalRoles -AssignAzureADGroupRoles -AssignmentScope Tenant
 
   .EXAMPLE
   PS> ./Onboarding.ps1 -FilePath ./OnBoardingData.csv -AssignServicePrincipalRoles -AssignmentScope ManagementGroups
@@ -90,7 +90,7 @@ Param (
     [Switch]$AssignAzureADGroupRoles,
 
     [Parameter(ParameterSetName = 'AssignRoles')]
-    [ValidateSet('Subscriptions', "ManagementGroups")]
+    [ValidateSet('Subscriptions', "ManagementGroups", "Tenant")]
     [String]$AssignmentScope,
 
     [Parameter(ParameterSetName = 'ExportUndoCommands')]
@@ -241,7 +241,8 @@ if ($($AssignServicePrincipalRoles.IsPresent -or $AssignAzureADGroupRoles.IsPres
             # Check if the desired assignment scope is for subscriptions or management groups
             # After check get all the subscriptions id and format the string as needed or all management groups ids that the user has access to
             $scopesList = if ($AssignmentScope -eq 'Subscriptions') { Get-AzSubscription | Select-Object -ExpandProperty SubscriptionId | ForEach-Object { "/subscriptions/$_" } }
-            elseif ($AssignmentScope -eq 'ManagementGroups') { $scopesList = Get-AzManagementGroup | Select-Object -ExpandProperty Id }
+            elseif ($AssignmentScope -eq 'ManagementGroups') { Get-AzManagementGroup | Select-Object -ExpandProperty Id }
+            elseif ($AssignmentScope -eq 'Tenant') { "/providers/Microsoft.Management/managementGroups/$($(Get-AzContext).Tenant.Id)" }
             else { Write-Host "No assignment scope was choosed" -ForegroundColor Red }
 
             # If subscriptions or management group were found
