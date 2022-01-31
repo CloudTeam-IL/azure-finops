@@ -124,6 +124,8 @@ Param (
     [Switch]$ExportUndoAndRemovalCommands
 )
 
+#Requires -Modules AzureAD.Standard.Preview,Az.Accounts,Az.Resources,Az.Storage,Az.Billing,Az.CostManagement
+
 # Check if connected to AzureAD and ARM if not connect 
 if (-not $(Get-AzContext -ErrorAction SilentlyContinue)) { Connect-AzAccount | Out-Null }
 try { Get-AzureADDomain | Out-Null } catch { AzureAD.Standard.Preview\Connect-AzureAD -Identity -TenantID $env:ACC_TID | Out-Null }
@@ -445,14 +447,14 @@ function CreateOrGetBillCSVExports {
     if (-not $billingAccount) { Write-Error "No billing account with id $billingAccountId was found" -ErrorAction Stop }
 
     # Check if the Microsoft.CostManagement and Microsoft.CostManagementExports resource providers are not registered in the subscription of the relevant storage account for BillCSV export
-    $notRegisteredresourceProviders = Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -like "Microsoft.CostManagement*" -and $_.RegistrationState -ne 'Registered' } 
+    $notRegisteredresourceProviders = Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -eq "Microsoft.CostManagementExports" -and $_.RegistrationState -ne 'Registered' } 
     # If the resource providers not registered
     if ($notRegisteredresourceProviders) {
         Write-Host "Registering not registered cost management resource providers"
         # Register each of the not registered resource providers
         $notRegisteredresourceProviders | ForEach-Object { Register-AzResourceProvider -ProviderNamespace $_.ProviderNamespace } | Out-Null
         # Loop and wait till the resource providers registration in the subscription finished
-        while ($(Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -like "Microsoft.CostManagement*" -and $_.RegistrationState -ne 'Registered' })) { Start-Sleep -Seconds 5 }
+        while ($(Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -eq "Microsoft.CostManagementExports" -and $_.RegistrationState -ne 'Registered' })) { Start-Sleep -Seconds 5 }
     }
 
     # Function for executing the command for creating the BillCSV daily scheduled export with the relevant parameters and values
