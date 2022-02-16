@@ -1,4 +1,4 @@
-ServicePrincipal,AzureADGroup,Users,ServicePrincipalRoles,AzureADGroupRoles,StorageAccountSubscription,StorageAccountResourceGroup,StorageAccountName,Location,ServicePrincipalStorageAccountRoles,AzureADGroupStorageAccountRoles,BillingAccountId
+ServicePrincipal,AzureADGroup,Users,ServicePrincipalRoles,AzureADGroupRoles,StorageAccountSubscription,StorageAccountResourceGroup,StorageAccountName,Location,ServicePrincipalStorageAccountRoles,AzureADGroupStorageAccountRoles,BillingAccount
 Costi,CloudTeam,user1@cloudteam.ai,Reader,Reader,{SubscriptionName},CloudTeamRG,{UniqueStorageAccountName},West Europe,Storage Blob Data Reader ,Storage Account Contributor,/providers/Microsoft.Billing/billingAccounts/{XXXXXXXXXXX}
 ,,user2@cloudteam.ai,Billing Reader,Billing Reader,,,,,Reader and Data Access ,,
 ,,,,Cost Management Reader,,,,,,,

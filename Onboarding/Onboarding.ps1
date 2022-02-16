@@ -335,14 +335,14 @@ function CreateOrGetStorageAccount {
         if ($(Get-AzContext).Subscription.Name -ne $subscription.Name) { 
             # Change to the relevant subscription for the storage account
             $subscriptionCheck = Set-AzContext -SubscriptionName $subscription.Name
-            if ($subscriptionCheck) { Write-Host "Changed to subscription $($subscriptionCheck.Name)" -ForegroundColor Green }
+            if ($subscriptionCheck) { Write-Host "Changed to subscription $($subscription.Name)" -ForegroundColor Green }
             else { Write-Error "Failed to change to subscription $($subscription.Name)" -ErrorAction Stop }
         }
     }
 
     # If GetOnly paramter used in here, get the storage account and the relevant blob container inside it
     if ($GetOnly.IsPresent) {
-        $storageAccount = Get-AzStorageAccount -ResourceGroupName $resourceGroup.ResourceGroupName -Name $storageAccountName -ErrorAction SilentlyContinue
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $storageAccountResourceGroup -Name $storageAccountName -ErrorAction SilentlyContinue
         $blobContainer = Get-AzStorageContainer -Name $blobContainerName -Context $storageAccount.Context -ErrorAction SilentlyContinue
         # If the both storage account and the relevant blob container are found return only the storage account id
         if ($storageAccount -and $blobContainer) { return $storageAccount.Id }
@@ -418,6 +418,7 @@ function CreateOrGetBillCSVExports {
     param ([String]$FilePath, [String]$StorageAccountResourceId)
     
     # Default variables
+    $costExportsNamePrefix = "Chi"
     $blobContainerName = 'usage-report'
     $blobContainerCostFolderName = 'costexport'
     $actualCostExportName = 'ChiActualCost'
@@ -425,36 +426,26 @@ function CreateOrGetBillCSVExports {
     # Get and import the CSV file, after that get the data from the relevant collumn
     $path = Get-ChildItem -Path $FilePath | Select-Object -ExpandProperty FullName
     $CSVFile = Import-Csv -Path $path -ErrorAction SilentlyContinue
-    $billingAccountId = $($CSVFile.BillingAccountId | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
-
+    $billingAccount = $($CSVFile.BillingAccount | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
+    
     # If the following varaible with the value from the CSV file equal to 'Not Relevant' return a null value from the function
-    if ($billingAccountId -eq 'Not Relevant') { return $null }
-
-    # Check and get if the storage account resource id pointing to an existing storage account resource 
-    $storageAccountResource = Get-AzResource -ResourceId $StorageAccountResourceId -ErrorAction SilentlyContinue
-    if (-not $($storageAccountResource.ResourceType -eq "Microsoft.Storage/storageAccounts")) { Write-Error "No storage account found for given resource id $StorageAccountResourceId" -ErrorAction Stop }
-    else {
-        $subscription = Get-AzSubscription -SubscriptionId $storageAccountResource.SubscriptionId 
-        if ($(Get-AzContext).Subscription.Name -ne $subscription.Name) { 
-            # Change to the relevant subscription for the storage account
-            $subscriptionCheck = Set-AzContext -SubscriptionName $subscription.Name
-            if ($subscriptionCheck) { Write-Host "Changed to subscription $($subscriptionCheck.Name)" -ForegroundColor Green }
-            else { Write-Error "Failed to change to subscription $($subscription.Name)" -ErrorAction Stop }
+    if ($billingAccount -eq 'Not Relevant') { return $null }
+    
+    function CheckRegisterProviders {
+        param ([Array]$Providers)
+    
+        # Check if the Microsoft.CostManagement and Microsoft.CostManagementExports resource providers are not registered in the subscription of the relevant storage account for BillCSV export
+        $notRegisteredresourceProviders = Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -in $Providers -and $_.RegistrationState -ne 'Registered' } 
+        # If the resource providers not registered
+        if ($notRegisteredresourceProviders) {
+            # Register each of the not registered resource providers
+            $notRegisteredresourceProviders | ForEach-Object { 
+                Write-Output "Registering not registered $($_.ProviderNamespace) resource provider"
+                Register-AzResourceProvider -ProviderNamespace $_.ProviderNamespace -ErrorAction Stop | Out-Null 
+            } 
+            # Loop and wait till the resource providers registration in the subscription finished
+            while ($(Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -in $Providers -and $_.RegistrationState -ne 'Registered' })) { Start-Sleep -Seconds 5 }
         }
-    }
-    # Check and get if the given billing account id pointing to an existing billing account
-    $billingAccount = Get-AzBillingAccount -ErrorAction SilentlyContinue | Where-Object Id -eq $billingAccountId
-    if (-not $billingAccount) { Write-Error "No billing account with id $billingAccountId was found" -ErrorAction Stop }
-
-    # Check if the Microsoft.CostManagement and Microsoft.CostManagementExports resource providers are not registered in the subscription of the relevant storage account for BillCSV export
-    $notRegisteredresourceProviders = Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -eq "Microsoft.CostManagementExports" -and $_.RegistrationState -ne 'Registered' } 
-    # If the resource providers not registered
-    if ($notRegisteredresourceProviders) {
-        Write-Host "Registering not registered cost management resource providers"
-        # Register each of the not registered resource providers
-        $notRegisteredresourceProviders | ForEach-Object { Register-AzResourceProvider -ProviderNamespace $_.ProviderNamespace } | Out-Null
-        # Loop and wait till the resource providers registration in the subscription finished
-        while ($(Get-AzResourceProvider -ListAvailable | Where-Object { $_.ProviderNamespace -eq "Microsoft.CostManagementExports" -and $_.RegistrationState -ne 'Registered' })) { Start-Sleep -Seconds 5 }
     }
 
     # Function for executing the command for creating the BillCSV daily scheduled export with the relevant parameters and values
@@ -465,6 +456,7 @@ function CreateOrGetBillCSVExports {
             -DataSetGranularity Daily -DestinationResourceId $ResourceId -DestinationContainer $ContainerName -DestinationRootFolderPath $CostFolderName `
             -Format Csv -RecurrencePeriodFrom $(Get-Date -AsUTC) -RecurrencePeriodTo $($(Get-Date -AsUTC).AddYears(20)) -Scope $BillAccountlId
     }
+
 
     # Function for executing the command for creating the BillCSV for one time monthly export with the relevant parameters and values
     function ExportCostOneTime {
@@ -506,24 +498,93 @@ function CreateOrGetBillCSVExports {
         else { Write-Host "The $OutputMessage cost export with name $ExportName already exist" }
     }
 
-    # Initialize an array of the values for BillCSV scheduled cost export
-    $scheduleExportParameters = @( @($actualCostExportName, "ActualCost", "actual"), @($amortizedCostExportName, "AmortizedCost", "amortized") )
-    # Loop over each of the array values and execute the cost export function using the correct ones
-    $scheduleExportParameters | ForEach-Object {
-        CreateCostExport -ExportName $_[0] -DefinitionType $_[1] -ResourceId $storageAccountResource.ResourceId -ContainerName $blobContainerName `
-            -CostFolderName $blobContainerCostFolderName -BillAccountlId $billingAccount.Id -OutputMessage $_[2]
+    # Check and get if the storage account resource id pointing to an existing storage account resource 
+    $storageAccountResource = Get-AzResource -ResourceId $StorageAccountResourceId -ErrorAction SilentlyContinue
+    if (-not $($storageAccountResource.ResourceType -eq "Microsoft.Storage/storageAccounts")) { Write-Error "No storage account found for given resource id $StorageAccountResourceId" -ErrorAction Stop }
+    else {
+        $subscription = Get-AzSubscription -SubscriptionId $storageAccountResource.SubscriptionId 
+        if ($(Get-AzContext).Subscription.Name -ne $subscription.Name) { 
+            # Change to the relevant subscription for the storage account
+            $subscriptionCheck = Set-AzContext -SubscriptionName $subscription.Name
+            if ($subscriptionCheck) { Write-Host "Changed to subscription $($subscriptionCheck.Name)" -ForegroundColor Green }
+            else { Write-Error "Failed to change to subscription $($subscription.Name)" -ErrorAction Stop }
+        }
     }
 
-    # Initialize an array of the values for BillCSV one time cost export
-    $oneTimeExportParameters = @( @("$actualCostExportName-2-Months", "ActualCost", 2, "one time actual"),
-        @("$amortizedCostExportName-2-Months", "AmortizedCost", 2, "one time amortized"),
-        @("$actualCostExportName-1-Month", "ActualCost", 1, "one time actual"),
-        @("$amortizedCostExportName-2-Month", "AmortizedCost", 1, "one time amortized")
-    )
-    # Loop over each of the array values and execute the cost export function using the correct ones
-    $oneTimeExportParameters | ForEach-Object {
-        CreateCostExport -ExportName $_[0] -DefinitionType $_[1] -ResourceId $storageAccountResource.ResourceId -ContainerName $blobContainerName `
-            -CostFolderName $blobContainerCostFolderName -BillAccountlId $billingAccount.Id -NumberOfMonths $_[2] -OutputMessage $_[3]
+    # If BillCSV should be created by susbcriptions
+    if ($billingAccount -eq 'Subscriptions') {
+        # Get all enabled subscriptions
+        $subscriptions = Get-AzSubscription | Where-Object State -eq Enabled
+        # Loop over each subscription found
+        foreach ($subscription in $subscriptions) {
+            # Get all cost exports at the current subscription in the loop and by the following options
+            $costExports = Get-AzCostManagementExport -Scope "/subscriptions/$($subscription.Id)" | Where-Object { $_.Name -Like "$costExportsNamePrefix*" -and $_.DataSetGranularity -eq 'Daily' -and $_.DefinitionTimeframe -eq 'MonthToDate' -and $_.DefinitionType -in 'ActualCost', 'AmortizedCost' }
+
+            # Check if the number of cost exports is greater that or equal to the number in the condition
+            if ($costExports.Length -ge 2) {
+                Write-Output "Daily export of both ActualCost and AmortizedCost already configured in subscription $($subscription.Name)"
+            }
+            # Else create new cost exports
+            else {
+                # Change to the relevant subscription in the session
+                $subscriptionCheck = Set-AzContext -SubscriptionObject $subscription
+                if ($subscriptionCheck) {
+                    Write-Output "Changed to subscription $($subscription.Name)"
+                    # Check if the resource provider for cost management exports is registered, if not register it
+                    CheckRegisterProviders -Providers "Microsoft.CostManagementExports"
+
+                    # Conigure the virtual folder name in the blob container for the subscription
+                    $blobContainerCostFolderName = "$($subscription.Name)_$($subscription.Id)"
+                    # Initialize an array of the values for BillCSV scheduled cost export
+                    $scheduleExportParameters = @( @("$actualCostExportName`_$($subscription.Id)", "ActualCost", "actual"), @("$amortizedCostExportName`_$($subscription.Id)", "AmortizedCost", "amortized") )
+
+                    # Loop over each of the array values and execute the cost export function using the correct ones
+                    $scheduleExportParameters | ForEach-Object {
+                        CreateCostExport -ExportName $_[0] -DefinitionType $_[1] -ResourceId $storageAccountResource.ResourceId -ContainerName $blobContainerName `
+                            -CostFolderName $blobContainerCostFolderName -BillAccountlId "/subscriptions/$($subscription.Id)" -OutputMessage $_[2]
+                    }
+
+                    # Initialize an array of the values for BillCSV one time cost export
+                    $oneTimeExportParameters = @( @("$actualCostExportName`_$($subscription.Id)_2_Months", "ActualCost", 2, "one time actual"),
+                        @("$amortizedCostExportName`_$($subscription.Id)_2_Months", "AmortizedCost", 2, "one time amortized"),
+                        @("$actualCostExportName`_$($subscription.Id)_1_Month", "ActualCost", 1, "one time actual"),
+                        @("$amortizedCostExportName`_$($subscription.Id)_1_Month", "AmortizedCost", 1, "one time amortized")
+                    )
+                    # Loop over each of the array values and execute the cost export function using the correct ones
+                    $oneTimeExportParameters | ForEach-Object {
+                        CreateCostExport -ExportName $_[0] -DefinitionType $_[1] -ResourceId $storageAccountResource.ResourceId -ContainerName $blobContainerName `
+                            -CostFolderName $blobContainerCostFolderName -BillAccountlId "/subscriptions/$($subscription.Id)" -NumberOfMonths $_[2] -OutputMessage $_[3]
+                    }
+                }
+                else { Write-Error "Failed to change to subscription $($subscription.Name)" -ErrorAction Stop }
+            }
+        }
+    }
+    else {
+        # Check and get if the given billing account id pointing to an existing billing account
+        $billingAccountId = Get-AzBillingAccount -ErrorAction SilentlyContinue | Where-Object Id -eq $billingAccount | Select-Object -ExpandProperty Id
+        if (-not $billingAccountId) { Write-Error "No billing account with id $billingAccount was found" -ErrorAction Stop }
+        CheckRegisterProviders -Providers "Microsoft.CostManagementExports"
+
+        # Initialize an array of the values for BillCSV scheduled cost export
+        $scheduleExportParameters = @( @("$actualCostExportName`_$($subscription.Id)", "ActualCost", "actual"), @("$amortizedCostExportName`_$($subscription.Id)", "AmortizedCost", "amortized") )
+        # Loop over each of the array values and execute the cost export function using the correct ones
+        $scheduleExportParameters | ForEach-Object {
+            CreateCostExport -ExportName $_[0] -DefinitionType $_[1] -ResourceId $storageAccountResource.ResourceId -ContainerName $blobContainerName `
+                -CostFolderName $blobContainerCostFolderName -BillAccountlId $billingAccountId -OutputMessage $_[2]
+        }
+
+        # Initialize an array of the values for BillCSV one time cost export
+        $oneTimeExportParameters = @( @("$actualCostExportName`_$($subscription.Id)_2_Months", "ActualCost", 2, "one time actual"),
+            @("$amortizedCostExportName`_$($subscription.Id)_2_Months", "AmortizedCost", 2, "one time amortized"),
+            @("$actualCostExportName`_$($subscription.Id)_1_Month", "ActualCost", 1, "one time actual"),
+            @("$amortizedCostExportName`_$($subscription.Id)_1_Month", "AmortizedCost", 1, "one time amortized")
+        )
+        # Loop over each of the array values and execute the cost export function using the correct ones
+        $oneTimeExportParameters | ForEach-Object {
+            CreateCostExport -ExportName $_[0] -DefinitionType $_[1] -ResourceId $storageAccountResource.ResourceId -ContainerName $blobContainerName `
+                -CostFolderName $blobContainerCostFolderName -BillAccountlId $billingAccountId -NumberOfMonths $_[2] -OutputMessage $_[3]
+        }
     }
 }
 
@@ -672,10 +733,10 @@ if ($AddUsersToGroup.IsPresent -and $InviteGuestUsers_AddUsersToGroup.IsPresent)
 # Use this switch to create or get a storage account for the BillCSV export
 if ($CreateOrGetStorageAccount.IsPresent) { CreateOrGetStorageAccount -FilePath $FilePath }
 # Use those switches to create or get the BillCSV exports to a created storage account or create a new storage account and then create BillCSV exports
-if ($CreateOrGetBillCSVExports.IsPresent -and $CreateStorageAccount_CreateOrGetBillCSVExports) {
+if ($CreateOrGetBillCSVExports.IsPresent -or $CreateStorageAccount_CreateOrGetBillCSVExports.IsPresent) {
     # Create a new storage account and get its id or get a created one id
     $storageAccountId = if ($CreateStorageAccount_CreateOrGetBillCSVExports.IsPresent) { CreateOrGetStorageAccount -FilePath $FilePath }
-    elseif ($CreateOrGetStorageAccount.IsPresent) { CreateOrGetStorageAccount -FilePath $FilePath -GetOnly }
+    elseif ($CreateOrGetBillCSVExports.IsPresent) { CreateOrGetStorageAccount -FilePath $FilePath -GetOnly }
     # If storage account id have been found call the CreateOrGetBillCSVExports function to create or get the BillCSV exports
     if ($storageAccountId) { CreateOrGetBillCSVExports -FilePath $FilePath -StorageAccountResourceId $storageAccountId }
 }
