@@ -6,7 +6,9 @@ PARAM(
     [parameter (Mandatory = $false)]
     [string] $SubscriptionNamePattern = '.*',
     [parameter (Mandatory = $false)]
-    [int] $daysToDelete = 89
+    [string] $exceptionTags = "",
+    [parameter (Mandatory = $false)]
+    [int] $daysToDelete = 0
 )
 
 <#
@@ -21,7 +23,7 @@ function getDisksFromVm($vm, $disks) {
     foreach ($d in $disks) {
         $disk = Get-AzDisk -ResourceGroupName $vm.ResourceGroupName -Name $d
         $null = $ids.Add($disk.Id)
-        if ($disk.DiskSizeGB -gt 50) {
+        if ($disk.DiskSizeGB -gt 29) {
             $flag = 1
         }
     }
@@ -31,10 +33,22 @@ function getDisksFromVm($vm, $disks) {
     return New-Object System.Collections.ArrayList
 }
 
+function ConvertCommaToNewLine
+{
+    param
+    (
+        $data
+    )
+    $Converted = $data -replace ",","`r`n"
+    return $Converted
+}
 
 Write-Output ('{0:yyyy-MM-dd HH:mm:ss.f} - Starting' -f (Get-Date))
 
 try {
+    #converting the exception string to object
+    $TagsExceptions = ConvertCommaToNewLine -data $exceptionTags
+    $Exceptions = ConvertFrom-StringData -StringData $TagsExceptions
     # Login to Azure
     if ($env:AUTOMATION_ASSET_ACCOUNTID) {
         if ($AccountType -eq "ServicePrincipal") {
@@ -56,7 +70,7 @@ try {
         Connect-AzAccount
     }
     # Iterate all subscriptions
-    Get-AzSubscription | Where-Object { ($_.Name -match $SubscriptionNamePattern) -and ($_.State -eq 'Enabled') } | ForEach-Object {
+    Get-AzSubscription -TenantId "667d9faa-186f-4608-8a36-cf595f0350fb" | Where-Object { ($_.Name -match $SubscriptionNamePattern) -and ($_.State -eq 'Enabled') } | ForEach-Object {
 
         Write-Output ('Switching to subscription: {0}' -f $_.Name)
         $null = Set-AzContext -SubscriptionObject $_ -Force
@@ -69,12 +83,43 @@ try {
         $mergedTags = @{"Candidate" = "DeleteMe" }
         $vms = (Get-AzVM -Status)
         foreach ($vm in $vms ) {
-
+            $alreadyChecked = $false
             $vmDetails = Get-AzVM -ResourceGroupName $vm.ResourceGroupName -Name $vm.Name -Status
             # $tmpIds = New-Object System.Collections.ArrayList
             $tmpIds = New-Object System.Collections.ArrayList
             if ($vm.PowerState -eq "VM deallocated") {
                 Write-Output ($vm.id)
+                #iterrating over all the vms tags
+                foreach($tag in $vm.Tags.Keys)
+                {
+                    #iterrating over all the tags with the exceptions
+                    foreach($exception in $Exceptions.Keys)
+                    {
+                        #if a vm has a tag with the exception as value
+                        if ($vm.Tags.$tag -eq $exception) {
+                            #remeber that the vm was already checked
+                            $alreadyChecked = $true
+                            #getting the exception date to check
+                            $days = $Exceptions.$exception -as [Int]
+                            $exceptionDate = $(Get-Date).AddDays(-$days)
+                            $exceptionDate = $exceptionDate.ToString("yyyy-MM-ddTHH:mm:ss")
+                            #getting the logs
+                            $logEntry = (Get-AzLog  -ResourceId $vm.Id -Status Accepted -DetailedOutput -StartTime $exceptionDate | Where-Object { $_.Authorization.Action -eq "Microsoft.Compute/virtualMachines/deallocate/action" })
+                            #if there are no logs
+                            if ($logEntry.Length -eq 0) {
+                                #saving vm and disks to tag
+                                $tmpIds = getDisksFromVm -vm $vm -disks $vmDetails.Disks.Name
+                                Write-Output $tmpIds.Length
+                            }
+                            $ids = $ids + $tmpIds
+                            break
+                        }
+                    }
+                    if ($alreadyChecked) {
+                        break
+                    }
+                }
+                if (-not $alreadyChecked) {
                 $logEntry = (Get-AzLog  -ResourceId $vm.Id -Status Accepted -DetailedOutput -StartTime $logsStartDate | Where-Object { $_.Authorization.Action -eq "Microsoft.Compute/virtualMachines/deallocate/action" })
                 # if there are no log entries we can assume VM has been down and no changes made
                 # for more than x days so it's OK to remove
@@ -92,17 +137,17 @@ try {
                     }
                 }
                 $ids = $ids + $tmpIds
-            }
+                }
         }
             Write-Output('will tag {0} resources' -f $ids.Count)
             foreach ($id in $ids) {
-            Write-Output('tagging {0}' -f $id)
-            $null = Update-AzTag -ResourceId $id -Tag $mergedTags -Operation Merge
-            # Update-AzTag -ResourceId $id -Tag $mergedTags -Operation Merge
+                Write-Output('tagging {0}' -f $id)
+                $null = Update-AzTag -ResourceId $id -Tag $mergedTags -Operation Merge
+                # Update-AzTag -ResourceId $id -Tag $mergedTags -Operation Merge
+            }
+            $ids = @()
         }
     }
-
-
 }
 catch {
     Write-Output ($_)
