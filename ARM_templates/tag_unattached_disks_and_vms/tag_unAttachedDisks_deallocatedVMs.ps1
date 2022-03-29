@@ -31,7 +31,7 @@ PARAM(
     [parameter (Mandatory = $false)]
     [string] $exceptionTags = "",
     [parameter (Mandatory = $false)]
-    [int] $daysToDelete = 0
+    [int] $daysToDelete = 89
 )
 
 <#
