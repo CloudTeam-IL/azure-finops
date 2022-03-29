@@ -1,3 +1,26 @@
+<#
+    .DESCRIPTION
+    this script will look for deallocated vms and if the vms are deallocated more then a given time
+    then the script will tag the vm and all the disks that attached to it.
+
+    .PARAMETER AccountType
+    the type of connection you make: Managed Identity ot Service Princicpal
+
+    .PARAMETER AccountName
+    incase of User Assigned Managed Identity, then you need to save the client id to an automation variable and provide the variable name
+
+    .PARAMETER SubscriptionNamePattern
+    adding a pattern to the subsctiption fetch, so it will take only a certain subscriptions
+
+    .PARAMETER exceptionTags
+    If you have certaing tags that you want to check with a diffrent daysToDelete, like: dev=0,prod=50. keep empty if there are no tags
+
+    .PARAMETER daysToDelete
+    the number of days that have passed since the disk became deallocated
+
+#>
+
+
 PARAM(
     [parameter (Mandatory = $false)]
     [string] $AccountType = "ManagedIdentity",
@@ -70,7 +93,7 @@ try {
         Connect-AzAccount
     }
     # Iterate all subscriptions
-    Get-AzSubscription -TenantId "667d9faa-186f-4608-8a36-cf595f0350fb" | Where-Object { ($_.Name -match $SubscriptionNamePattern) -and ($_.State -eq 'Enabled') } | ForEach-Object {
+    Get-AzSubscription | Where-Object { ($_.Name -match $SubscriptionNamePattern) -and ($_.State -eq 'Enabled') } | ForEach-Object {
 
         Write-Output ('Switching to subscription: {0}' -f $_.Name)
         $null = Set-AzContext -SubscriptionObject $_ -Force

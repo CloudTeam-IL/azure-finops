@@ -1,25 +1,58 @@
 <#
+    .DESCRIPTION
+    This script will add a tag that will show you that this disk is unattached longer then a given time
     To run this script you need Tag Contributor permissions and reader permissions.
     these permission allow you to add tags to resources even if you dont have persmissions to the resources 
+    this is will be run as runbook.
+
+    .PARAMETER AccoungType
+    What type of connection are you doing: Managed Identity or Service Principal
+
+    .PARAMETER AccountName
+    incase of Maneged Identity, save the client id in an automation variable and pass the name of that variable to the parameter
+
+    .PARAMETER TimeAlive
+    the number of days that have passed since the disk became unattached
+
+    .PARAMETER TagsException
+    If you have certaing tags that you want to check with a diffrent TimeAlive, like: dev=0,prod=50. keep empty if there are no tags
+
+    .PARAMETER SubForLog
+    the subscription you want to save the logs to
+
+    .PARAMETER StorageAccountName
+    the storage account you want to save the logs to
+
+    .PARAMETER ResourceGroup
+    the resource group you want to save the logs to
+
+    .PARAMETER logsName
+    the log file name you want
+
+    .PARAMETER ContainerName
+    the container you want to save to
+
+    .PARAMETER Format
+    the format of the dates that the logs will use.
 #>
 
 Param
 (
-    [Parameter (Mandatory = $false)]
-    [ValidateSet(“ManagedIdentity”, ”ServicePrincipal”)]
+    [Parameter (Mandatory = $true)]
+    [ValidateSet("ManagedIdentity", "ServicePrincipal")]
     [String] $AccountType = "ManagedIdentity",
     [Parameter(Mandatory = $false)]
     [String] $AccountName = "",
     [Parameter (Mandatory = $false)]
-    [Int] $TimeAlive = 0,
+    [Int] $TimeAlive = 89,
     [Parameter (Mandatory = $false)]
     [String] $TagsExceptions = "",
-    [Parameter (Mandatory = $false)]
-    [String] $SubForLog = "Azure subscription 1",
-    [Parameter (Mandatory = $false)]
-    [String] $StorageAccName = "testingforautomaion",
-    [Parameter (Mandatory = $false)]
-    [String] $ResourceGroup="daniel_Resources",
+    [Parameter (Mandatory = $true)]
+    [String] $SubForLog,
+    [Parameter (Mandatory = $true)]
+    [String] $StorageAccName,
+    [Parameter (Mandatory = $true)]
+    [String] $ResourceGroup,
     [Parameter (Mandatory = $false)]
     [String] $logsName = "Tag-Disks-Log",
     [Parameter (Mandatory = $false)]
@@ -290,7 +323,7 @@ $ctx = $StorageAcc.Context
 $allContainers = Get-AzStorageContainer -Context $ctx
 Write-Output "---- Creating storage containers and log files ----"
 $Blob = ConnectToLogFile -allContainers $allContainers -ContainerName $ContainerName -logsName $logsName -ctx $ctx -LogSubjects $LogSubjects
-$allSub = Get-AzSubscription -TenantId "667d9faa-186f-4608-8a36-cf595f0350fb" 
+$allSub = Get-AzSubscription
 #moving between all the subscriptions
 diskCheckOnAllSubs  -allSub $allSub -Blob $Blob -DateToLog $DateToLog -Exceptions $TagsExceptions
 
