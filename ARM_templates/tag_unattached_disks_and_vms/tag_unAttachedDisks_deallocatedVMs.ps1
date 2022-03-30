@@ -1,23 +1,22 @@
 <#
     .DESCRIPTION
-    this script will look for deallocated vms and if the vms are deallocated more then a given time
-    then the script will tag the vm and all the disks that attached to it.
+    This script will look for deallocated VMS and if the VMS are deallocated more than a given time
+    then the script will tag the VM and all the disks that are attached to it.
 
     .PARAMETER AccountType
-    the type of connection you make: Managed Identity ot Service Princicpal
+    The type of connection you make: Managed Identity or Service Principal
 
     .PARAMETER AccountName
-    incase of User Assigned Managed Identity, then you need to save the client id to an automation variable and provide the variable name
+    Incase of User Assigned Managed Identity, then you need to save the client id to an automation variable and provide the variable name
 
     .PARAMETER SubscriptionNamePattern
-    adding a pattern to the subsctiption fetch, so it will take only a certain subscriptions
+    Adding a pattern to the subscription fetch, so it will take only a certain subscriptions
 
     .PARAMETER exceptionTags
-    If you have certaing tags that you want to check with a diffrent daysToDelete, like: dev=0,prod=50. keep empty if there are no tags
+    If you have certain tags that you want to check with a different daysToDelete, like dev=0,prod=50. keep empty if there are no tags
 
     .PARAMETER daysToDelete
-    the number of days that have passed since the disk became deallocated
-
+    The number of days that have passed since the disk became deallocated
 #>
 
 

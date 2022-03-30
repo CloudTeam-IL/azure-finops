@@ -1,39 +1,39 @@
 <#
     .DESCRIPTION
-    This script will add a tag that will show you that this disk is unattached longer then a given time
+    This script will add a tag that will show you that this disk is unattached longer than a given time
     To run this script you need Tag Contributor permissions and reader permissions.
-    these permission allow you to add tags to resources even if you dont have persmissions to the resources 
-    this is will be run as runbook.
+    these permission allow you to add tags to resources even if you don’t have permissions to the resources 
+    This will be run as a runbook.
 
     .PARAMETER AccoungType
     What type of connection are you doing: Managed Identity or Service Principal
 
     .PARAMETER AccountName
-    incase of Maneged Identity, save the client id in an automation variable and pass the name of that variable to the parameter
+    Incase of Managed Identity, save the client id in an automation variable and pass the name of that variable to the parameter
 
     .PARAMETER TimeAlive
-    the number of days that have passed since the disk became unattached
+    The number of days that have passed since the disk became unattached
 
     .PARAMETER TagsException
-    If you have certaing tags that you want to check with a diffrent TimeAlive, like: dev=0,prod=50. keep empty if there are no tags
+    If you have certain tags that you want to check with a different TimeAlive, like dev=0,prod=50. keep empty if there are no tags
 
     .PARAMETER SubForLog
-    the subscription you want to save the logs to
+    The subscription you want to save the logs to
 
     .PARAMETER StorageAccountName
-    the storage account you want to save the logs to
+    The storage account you want to save the logs to
 
     .PARAMETER ResourceGroup
-    the resource group you want to save the logs to
+    The resource group you want to save the logs to
 
     .PARAMETER logsName
-    the log file name you want
+    The log file name you want
 
     .PARAMETER ContainerName
-    the container you want to save to
+    The container you want to save to
 
     .PARAMETER Format
-    the format of the dates that the logs will use.
+    The format of the dates that the logs will use.
 #>
 
 Param
