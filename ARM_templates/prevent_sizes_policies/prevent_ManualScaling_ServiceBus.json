@@ -1,0 +1,29 @@
+{
+    "properties": {
+        "displayName": "Allowed EventHub SKUs",
+        "policyType": "Custom",
+        "mode": "All",
+        "description": "This policy enables you to specify a set of EventHub SKUs that your organization can deploy.",
+        "metadata": {
+            "version": "1.0.1",
+            "category": "Streaming"
+        },
+        "policyRule": {
+            "if": {
+                "allOf": [
+                    {
+                        "field": "microsoft.insights/autoscalesettings/targetResourceUri",
+                        "contains": "Microsoft.ServiceBus/namespaces"
+                    },
+                    {
+                        "field": "microsoft.insights/autoscalesettings/enabled",
+                        "equals": false
+                    }
+                ]
+            },
+            "then": {
+                "effect": "Deny"
+            }
+        }
+    }
+}
