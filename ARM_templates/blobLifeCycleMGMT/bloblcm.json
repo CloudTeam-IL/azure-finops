@@ -1,0 +1,150 @@
+{
+  "mode": "All",
+  "policyRule": {
+    "if": {
+      "allOf": [
+        {
+          "field": "type",
+          "equals": "Microsoft.Storage/StorageAccounts"
+        },
+        {
+          "field": "kind",
+          "in": [
+            "StorageV2",
+            "BlobStorage",
+            "BlockBlobStorage"
+          ]
+        }
+      ]
+    },
+    "then": {
+      "effect": "deployIfNotExists",
+      "details": {
+        "type": "Microsoft.Storage/StorageAccounts",
+        "existenceCondition": {
+          "allOf": [
+            {
+              "field": "kind",
+              "in": [
+                "StorageV2",
+                "BlobStorage",
+                "BlockBlobStorage"
+              ]
+            },
+            {
+              "field": "Microsoft.Storage/storageAccounts/blobServices/lastAccessTimeTrackingPolicy.enable",
+              "equals": false
+            }
+          ]
+        },
+        "roleDefinitionIds": [
+          "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+        ],
+        "deployment": {
+          "properties": {
+            "mode": "incremental",
+            "template": {
+              "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "variables": {
+                "storageAccountsAPI": "2018-11-01",
+                "blobPolicyAPI": "2021-06-01"
+              },
+              "parameters": {
+                "storageAccountName": {
+                  "type": "string"
+                },
+                "tierToArchiveDaysNumber": {
+                  "type": "int"
+                },
+                "tierToCoolDaysNumber": {
+                  "type": "int"
+                }
+              },
+              "resources": [
+                {
+                  "type": "Microsoft.Storage/storageAccounts/blobServices",
+                  "apiVersion": "[variables('storageAccountsAPI')]",
+                  "name": "[concat(parameters('storageAccountName') ,'/default')]",
+                  "properties": {
+                    "lastAccessTimeTrackingPolicy": {
+                      "enable": true,
+                      "name": "AccessTimeTracking",
+                      "trackingGranularityInDays": 1,
+                      "blobType": [
+                        "blockBlob"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+                  "apiVersion": "[variables('blobPolicyAPI')]",
+                  "name": "[concat(parameters('storageAccountName'), '/default')]",
+                  "dependsOn": [
+                    "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
+                  ],
+                  "properties": {
+                    "policy": {
+                      "rules": [
+                        {
+                          "enabled": true,
+                          "name": "BlobLCM",
+                          "type": "Lifecycle",
+                          "definition": {
+                            "actions": {
+                              "baseBlob": {
+                                "tierToArchive": {
+                                  "daysAfterModificationGreaterThan": "[parameters('tierToArchiveDaysNumber')]"
+                                },
+                                "tierToCool": {
+                                  "daysAfterModificationGreaterThan": "[parameters('tierToCoolDaysNumber')]"
+                                }
+                              }
+                            },
+                            "filters": {
+                              "blobTypes": [
+                                "blockBlob"
+                              ]
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "parameters": {
+              "storageAccountName": {
+                "value": "[field('name')]"
+              },
+              "tierToArchiveDaysNumber": {
+                "value": "[parameters('tierToArchiveDaysNumber')]"
+              },
+              "tierToCoolDaysNumber": {
+                "value": "[parameters('tierToCoolDaysNumber')]"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "parameters": {
+    "tierToArchiveDaysNumber": {
+      "type": "Integer",
+      "metadata": {
+        "displayName": "Tier To Archive Days After Modification Greater Than",
+        "description": "Tier To Archive Days After Modification Greater Than."
+      }
+    },
+    "tierToCoolDaysNumber": {
+      "type": "Integer",
+      "metadata": {
+        "displayName": "Tier To Cool Days After Modification Greater Than",
+        "description": "Tier To Cool Days After Modification Greater Than."
+      }
+    }
+  }
+}
