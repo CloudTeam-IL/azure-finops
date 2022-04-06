@@ -18,22 +18,14 @@
       ]
     },
     "then": {
-      "effect": "deployIfNotExists",
+      "effect": "[parameters('effect')]",
       "details": {
-        "type": "Microsoft.Storage/StorageAccounts",
+        "type": "Microsoft.Storage/storageAccounts/blobServices",
         "existenceCondition": {
           "allOf": [
             {
-              "field": "kind",
-              "in": [
-                "StorageV2",
-                "BlobStorage",
-                "BlockBlobStorage"
-              ]
-            },
-            {
               "field": "Microsoft.Storage/storageAccounts/blobServices/lastAccessTimeTrackingPolicy.enable",
-              "equals": false
+              "equals": true
             }
           ]
         },
@@ -46,12 +38,11 @@
             "template": {
               "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
               "contentVersion": "1.0.0.0",
-              "variables": {
-                "storageAccountsAPI": "2018-11-01",
-                "blobPolicyAPI": "2021-06-01"
-              },
               "parameters": {
                 "storageAccountName": {
+                  "type": "string"
+                },
+                "effect": {
                   "type": "string"
                 },
                 "tierToArchiveDaysNumber": {
@@ -60,6 +51,10 @@
                 "tierToCoolDaysNumber": {
                   "type": "int"
                 }
+              },
+              "variables": {
+                "storageAccountsAPI": "2021-08-01",
+                "blobPolicyAPI": "2021-06-01"
               },
               "resources": [
                 {
@@ -119,6 +114,9 @@
               "storageAccountName": {
                 "value": "[field('name')]"
               },
+              "effect": {
+                "value": "[parameters('effect')]"
+              },
               "tierToArchiveDaysNumber": {
                 "value": "[parameters('tierToArchiveDaysNumber')]"
               },
@@ -136,15 +134,27 @@
       "type": "Integer",
       "metadata": {
         "displayName": "Tier To Archive Days After Modification Greater Than",
-        "description": "Tier To Archive Days After Modification Greater Than."
+        "description": "Input 0 for disabling archive policy."
       }
     },
     "tierToCoolDaysNumber": {
       "type": "Integer",
       "metadata": {
         "displayName": "Tier To Cool Days After Modification Greater Than",
-        "description": "Tier To Cool Days After Modification Greater Than."
+        "description": "Input 0 for disabling cool policy."
       }
+    },
+    "effect": {
+      "type": "String",
+      "defaultValue": "deployIfNotExists",
+      "metadata": {
+        "displayName": "Effect",
+        "description": "Audit ot Enforce Mode"
+      },
+      "allowedValues": [
+        "AuditIfNotExists",
+        "deployIfNotExists"
+      ]
     }
   }
 }
