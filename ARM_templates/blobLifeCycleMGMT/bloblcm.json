@@ -50,25 +50,46 @@
                 },
                 "tierToCoolDaysNumber": {
                   "type": "int"
+                },
+                "tierToDeleteDaysNumber": {
+                  "type": "int"
+                },
+                "blobTypes": {
+                  "type": "array"
                 }
               },
               "variables": {
                 "storageAccountsAPI": "2021-08-01",
-                "blobPolicyAPI": "2021-06-01"
+                "blobPolicyAPI": "2021-08-01",
+                "resourceName": "[concat(parameters('storageAccountName'), '/default')]",
+                "deleteEnabled": "[not(equals(parameters('tierToDeleteDaysNumber'), 0))]",
+                "archiveEnabled": "[not(equals(parameters('tierToArchiveDaysNumber'), 0))]",
+                "coolEnabled": "[not(equals(parameters('tierToCoolDaysNumber'), 0))]",
+                "Enabled": "[or(variables('archiveEnabled'), variables('coolEnabled'), variables('deleteEnabled'))]",
+                "archiveBaseBlobObject": "[if(variables('archiveEnabled'), json(concat('{\"daysAfterModificationGreaterThan\": \"', parameters('tierToCoolDaysNumber'), '\"}')), json('null'))]",
+                "coolBaseBlobObject": "[if(variables('coolEnabled'), json(concat('{\"daysAfterModificationGreaterThan\": \"', parameters('tierToCoolDaysNumber'), '\"}')), json('null'))]",
+                "deleteBaseBlobObject": "[if(variables('deleteEnabled'), json(concat('{\"daysAfterModificationGreaterThan\": \"', parameters('tierToDeleteDaysNumber'), '\"}')), json('null'))]",
+                "deleteSnapshotObject": "[if(variables('deleteEnabled'), json(concat('{\"daysAfterCreationGreaterThan\": \"', parameters('tierToDeleteDaysNumber'), '\"}')), json('null'))]",
+                "deleteVersionObject": "[if(variables('deleteEnabled'), json(concat('{\"daysAfterCreationGreaterThan\": \"', parameters('tierToDeleteDaysNumber'), '\"}')), json('null'))]",
+                "baseBlobObject": "[createObject('baseblob', createObject('delete', variables('deleteBaseBlobObject'), 'tierToArchive', variables('archiveBaseBlobObject'), 'tierToCool', variables('coolBaseBlobObject')))]",
+                "snapshotObject": "[if(not(empty(variables('deleteSnapshotObject'))), createObject('snapshot', createObject('delete', variables('deleteSnapshotObject'))), json('null'))]",
+                "versionObject": "[if(not(empty(variables('deleteVersionObject'))), createObject('version', createObject('delete', variables('deleteVersionObject'))), json('null'))]",
+                "actionsPrepObject": "[createArray(variables('baseBlobObject'), variables('snapshotObject'), variables('versionObject'))]",
+                "actionsObject": "[variables('actionsPrepObject')[0]]"
               },
               "resources": [
                 {
                   "type": "Microsoft.Storage/storageAccounts/blobServices",
                   "apiVersion": "[variables('storageAccountsAPI')]",
-                  "name": "[concat(parameters('storageAccountName') ,'/default')]",
+                  "name": "[variables('resourceName')]",
                   "properties": {
                     "lastAccessTimeTrackingPolicy": {
-                      "enable": true,
-                      "name": "AccessTimeTracking",
-                      "trackingGranularityInDays": 1,
-                      "blobType": [
-                        "blockBlob"
-                      ]
+                        "enable": true,
+                        "name": "AccessTimeTracking",
+                        "trackingGranularityInDays": 1,
+                        "blobType": [
+                            "blockBlob"
+                        ]
                     }
                   }
                 },
@@ -77,36 +98,26 @@
                   "apiVersion": "[variables('blobPolicyAPI')]",
                   "name": "[concat(parameters('storageAccountName'), '/default')]",
                   "dependsOn": [
-                    "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
+                      "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
                   ],
                   "properties": {
-                    "policy": {
-                      "rules": [
-                        {
-                          "enabled": true,
-                          "name": "BlobLCM",
-                          "type": "Lifecycle",
-                          "definition": {
-                            "actions": {
-                              "baseBlob": {
-                                "tierToArchive": {
-                                  "daysAfterModificationGreaterThan": "[parameters('tierToArchiveDaysNumber')]"
-                                },
-                                "tierToCool": {
-                                  "daysAfterModificationGreaterThan": "[parameters('tierToCoolDaysNumber')]"
+                      "policy": {
+                          "rules": [
+                            {
+                                "enabled": "[variables('Enabled')]",
+                                "name": "BlobLCM",
+                                "type": "Lifecycle",
+                                "definition": {
+                                    "actions": "[variables('actionsObject')]",
+                                    "filters": {
+                                        "blobTypes": "[parameters('blobTypes')]"
+                                    }
                                 }
-                              }
-                            },
-                            "filters": {
-                              "blobTypes": [
-                                "blockBlob"
-                              ]
                             }
-                          }
-                        }
-                      ]
-                    }
-                  }
+                          ]
+                      }
+                  },
+                  "condition": "[variables('Enabled')]"
                 }
               ]
             },
@@ -122,6 +133,12 @@
               },
               "tierToCoolDaysNumber": {
                 "value": "[parameters('tierToCoolDaysNumber')]"
+              },
+              "tierToDeleteDaysNumber": {
+                "value": "[parameters('tierToDeleteDaysNumber')]"
+              },
+              "blobTypes": {
+                "value": "[parameters('blobTypes')]"
               }
             }
           }
@@ -144,6 +161,13 @@
         "description": "Input 0 for disabling cool policy."
       }
     },
+    "tierToDeleteDaysNumber": {
+      "type": "Integer",
+      "metadata": {
+        "displayName": "Count of days after modification to delete the blobs",
+        "description": "Input 0 for disabling delete policy."
+      }
+    },
     "effect": {
       "type": "String",
       "defaultValue": "deployIfNotExists",
@@ -155,6 +179,14 @@
         "AuditIfNotExists",
         "deployIfNotExists"
       ]
+    },
+    "blobTypes": {
+      "type": "Array",
+      "defaultValue": ["blockBlob"],
+      "metadata": {
+        "displayName": "Blob Lifecycle Management Policy Blob Types",
+        "description": "Blob Lifecycle Management Policy Blob Types"
+      }
     }
   }
 }
