@@ -22,7 +22,18 @@
                 ]
             },
             "then": {
-                "effect": "Deny"
+                "effect": "modify",
+                "roleDefinitionIds": 
+                [
+                    "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+                ],
+                "operations": [
+                    {
+                        "operation": "addOrReplace",
+                        "field": "tags['Cnadidate-AutoScale']",
+                        "value": "Not Enabled"
+                    }
+                ]
             }
         }
     }
