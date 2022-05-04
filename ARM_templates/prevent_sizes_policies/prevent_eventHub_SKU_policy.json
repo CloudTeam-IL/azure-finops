@@ -26,6 +26,18 @@
             "if": {
                 "allOf": [
                     {
+                        "anyOf": [
+                            {
+                                "field": "tags",
+                                "notContainsKey": "exclude"
+                            },
+                            {
+                                "field":"tags[exclude]",
+                                "notEquals":"true"
+                            }
+                        ]
+                    },
+                    {
                         "field": "Microsoft.EventHub/namespaces/sku.name",
                         "notIn": "[parameters('listOfAllowedSKUs')]"
                     }
