@@ -68,7 +68,50 @@
                                                         "maximum": "[parameters('messagingUnits')]",
                                                         "default": "[parameters('messagingUnits')]"
                                                     },
-                                                    "rules": []
+                                                    "rules": [
+                                                        {
+                                                            "scaleAction": {
+                                                                "direction": "Increase",
+                                                                "type": "ServiceAllowedNextValue",
+                                                                "value": "1",
+                                                                "cooldown": "PT5M"
+                                                            },
+                                                            "metricTrigger": {
+                                                                "metricName": "NamespaceCpuUsage",
+                                                                "metricNamespace": "microsoft.servicebus/namespaces",
+                                                                "metricResourceUri": "[parameters('serviceBusId')]",
+                                                                "operator": "GreaterThan",
+                                                                "statistic": "Average",
+                                                                "threshold": 70,
+                                                                "timeAggregation": "Average",
+                                                                "timeGrain": "PT1M",
+                                                                "timeWindow": "PT10M",
+                                                                "Dimensions": [],
+                                                                "dividePerInstance": false
+                                                            }
+                                                        },
+                                                        {
+                                                            "scaleAction": {
+                                                                "direction": "Decrease",
+                                                                "type": "ServiceAllowedNextValue",
+                                                                "value": "1",
+                                                                "cooldown": "PT5M"
+                                                            },
+                                                            "metricTrigger": {
+                                                                "metricName": "AbandonMessage",
+                                                                "metricNamespace": "microsoft.servicebus/namespaces",
+                                                                "metricResourceUri": "[parameters('serviceBusId')]",
+                                                                "operator": "LessThan",
+                                                                "statistic": "Average",
+                                                                "threshold": 30,
+                                                                "timeAggregation": "Average",
+                                                                "timeGrain": "PT1M",
+                                                                "timeWindow": "PT10M",
+                                                                "Dimensions": [],
+                                                                "dividePerInstance": false
+                                                            }
+                                                        }
+                                                    ]
                                                 }
                                             ],
                                             "enabled": true,
