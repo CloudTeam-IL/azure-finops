@@ -1,0 +1,51 @@
+{
+    "properties": {
+        "displayName": "Allowed EventHub SKUs",
+        "policyType": "Custom",
+        "mode": "All",
+        "description": "This policy enables you to specify a set of EventHub SKUs that your organization can deploy.",
+        "metadata": {
+            "version": "1.0.1",
+            "category": "Streaming"
+        },
+        "parameters": {
+            "listOfAllowedSKUs": {
+                "type": "Array",
+                "metadata": {
+                    "description": "The list of size SKUs that can be specified for an Event Hub.",
+                    "displayName": "Allowed Size SKUs"
+                },
+                "allowedValues": [
+                    "Basic",
+                    "Standard",
+                    "Premium"
+                ]
+            }
+        },
+        "policyRule": {
+            "if": {
+                "allOf": [
+                    {
+                        "anyOf": [
+                            {
+                                "field": "tags",
+                                "notContainsKey": "exclude"
+                            },
+                            {
+                                "field":"tags[exclude]",
+                                "notEquals":"true"
+                            }
+                        ]
+                    },
+                    {
+                        "field": "Microsoft.EventHub/namespaces/sku.name",
+                        "notIn": "[parameters('listOfAllowedSKUs')]"
+                    }
+                ]
+            },
+            "then": {
+                "effect": "Deny"
+            }
+        }
+    }
+}
