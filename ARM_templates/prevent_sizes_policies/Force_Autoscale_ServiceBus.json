@@ -24,6 +24,7 @@
                         ]
                     },
                     {
+
                         "field": "type",
                         "equals": "Microsoft.ServiceBus/Namespaces"
                     },
