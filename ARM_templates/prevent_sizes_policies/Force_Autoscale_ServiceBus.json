@@ -12,18 +12,6 @@
             "if": {
                 "allOf": [
                     {
-                        "anyOf": [
-                            {
-                                "field": "tags",
-                                "notContainsKey": "exclude"
-                            },
-                            {
-                                "field": "tags[exclude]",
-                                "notEquals": "true"
-                            }
-                        ]
-                    },
-                    {
                         "field": "type",
                         "equals": "Microsoft.ServiceBus/Namespaces"
                     },
@@ -34,6 +22,7 @@
                     {
                         "field": "Microsoft.ServiceBus/Namespaces/sku.capacity",
                         "notEquals": 1
+
                     }
                 ]
             },
