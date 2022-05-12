@@ -12,12 +12,28 @@
             "if": {
                 "allOf": [
                     {
+                        "anyOf": [
+                            {
+                                "field": "tags",
+                                "notContainsKey": "exclude"
+                            },
+                            {
+                                "field": "tags[exclude]",
+                                "notEquals": "true"
+                            }
+                        ]
+                    },
+                    {
                         "field": "type",
                         "equals": "Microsoft.ServiceBus/Namespaces"
                     },
                     {
                         "field": "Microsoft.ServiceBus/Namespaces/sku.name",
                         "equals": "Premium"
+                    },
+                    {
+                        "field": "Microsoft.ServiceBus/Namespaces/sku.capacity",
+                        "notEquals": 1
                     }
                 ]
             },
@@ -64,7 +80,7 @@
                                                 {
                                                     "name": "AutoScale Profile",
                                                     "capacity": {
-                                                        "minimum": "[parameters('messagingUnits')]",
+                                                        "minimum": "1",
                                                         "maximum": "[parameters('messagingUnits')]",
                                                         "default": "[parameters('messagingUnits')]"
                                                     },
@@ -103,7 +119,7 @@
                                                                 "metricResourceUri": "[parameters('serviceBusId')]",
                                                                 "operator": "LessThan",
                                                                 "statistic": "Average",
-                                                                "threshold": 30,
+                                                                "threshold": 50,
                                                                 "timeAggregation": "Average",
                                                                 "timeGrain": "PT1M",
                                                                 "timeWindow": "PT10M",
