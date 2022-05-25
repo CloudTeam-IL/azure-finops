@@ -1,9 +1,9 @@
 {
     "properties": {
-        "displayName": "Force AutoScale on ServiceBus",
+        "displayName": "Allowed EventHub SKUs",
         "policyType": "Custom",
         "mode": "All",
-        "description": "This Policy Auto Deploy AutoScale on any new Service bus",
+        "description": "This policy enables you to specify a set of EventHub SKUs that your organization can deploy.",
         "metadata": {
             "version": "1.0.1",
             "category": "Streaming"
@@ -12,28 +12,12 @@
             "if": {
                 "allOf": [
                     {
-                        "anyOf": [
-                            {
-                                "field": "tags",
-                                "notContainsKey": "exclude"
-                            },
-                            {
-                                "field": "tags[exclude]",
-                                "notEquals": "true"
-                            }
-                        ]
-                    },
-                    {
                         "field": "type",
                         "equals": "Microsoft.ServiceBus/Namespaces"
                     },
                     {
                         "field": "Microsoft.ServiceBus/Namespaces/sku.name",
                         "equals": "Premium"
-                    },
-                    {
-                        "field": "Microsoft.ServiceBus/Namespaces/sku.capacity",
-                        "notEquals": 1
                     }
                 ]
             },
@@ -80,54 +64,11 @@
                                                 {
                                                     "name": "AutoScale Profile",
                                                     "capacity": {
-                                                        "minimum": "1",
+                                                        "minimum": "[parameters('messagingUnits')]",
                                                         "maximum": "[parameters('messagingUnits')]",
                                                         "default": "[parameters('messagingUnits')]"
                                                     },
-                                                    "rules": [
-                                                        {
-                                                            "scaleAction": {
-                                                                "direction": "Increase",
-                                                                "type": "ServiceAllowedNextValue",
-                                                                "value": "1",
-                                                                "cooldown": "PT5M"
-                                                            },
-                                                            "metricTrigger": {
-                                                                "metricName": "NamespaceCpuUsage",
-                                                                "metricNamespace": "microsoft.servicebus/namespaces",
-                                                                "metricResourceUri": "[parameters('serviceBusId')]",
-                                                                "operator": "GreaterThan",
-                                                                "statistic": "Average",
-                                                                "threshold": 70,
-                                                                "timeAggregation": "Average",
-                                                                "timeGrain": "PT1M",
-                                                                "timeWindow": "PT10M",
-                                                                "Dimensions": [],
-                                                                "dividePerInstance": false
-                                                            }
-                                                        },
-                                                        {
-                                                            "scaleAction": {
-                                                                "direction": "Decrease",
-                                                                "type": "ServiceAllowedNextValue",
-                                                                "value": "1",
-                                                                "cooldown": "PT5M"
-                                                            },
-                                                            "metricTrigger": {
-                                                                "metricName": "AbandonMessage",
-                                                                "metricNamespace": "microsoft.servicebus/namespaces",
-                                                                "metricResourceUri": "[parameters('serviceBusId')]",
-                                                                "operator": "LessThan",
-                                                                "statistic": "Average",
-                                                                "threshold": 50,
-                                                                "timeAggregation": "Average",
-                                                                "timeGrain": "PT1M",
-                                                                "timeWindow": "PT10M",
-                                                                "Dimensions": [],
-                                                                "dividePerInstance": false
-                                                            }
-                                                        }
-                                                    ]
+                                                    "rules": []
                                                 }
                                             ],
                                             "enabled": true,
