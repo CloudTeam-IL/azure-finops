@@ -1,4 +1,4 @@
-# Project Title
+# Allowed Replication Types policy
 
 ## Table of Contents
 
