@@ -7,20 +7,20 @@
 
 ## About <a name = "about"></a>
 
-policy for select allowed Replication Types for the storage accounts
+Policy to set allowed Replication Types for storage accounts
 
 ## Getting Started <a name = "getting_started"></a>
 
-### Installing
+### Installation
 
-go to policy page in azure portal
+1. Go to policy page in azure portal
 
-go to definition section click on the policy definition button.
+2. Go to definition section click on the policy definition button.
 
-paste the policy into policy rule section give him name and location then press save.
+3. Paste the policy into policy rule section, fill name and location and press save.
 
-after this get into the definition that create now and click assign.
+4. Get into the created definition and click assign.
 
-select the scope and in parameters section.
+5. Select the scope 
 
-select the allowed Replication Types and the effect (deny or audit) then click review + create the click create.
+6. Under parameters, select the allowed Replication Types and effect (deny or audit) then click review + create to assign the policy.
