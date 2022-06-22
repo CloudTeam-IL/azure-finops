@@ -236,7 +236,7 @@ foreach ($sub in $subs) {
     $OR.Nat_Gateway += FindEmptyNatGateway
     $OR.Service_Recovery_Vaults += FindEmptyASRVault
     $OR.Backup_Vaults += findEmptyBackupVault -RG $BVRG
-    Write-Host "$($count)/$($subs.Count) Finished" -BackgroundColor Green
+    Write-Host "$($count)/$($subs.Count) Finished" -ForegroundColor Green
     $count++
 }
 
