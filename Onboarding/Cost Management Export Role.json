@@ -1,26 +1,29 @@
 {
-    "properties": {
-        "roleName": "Cost Management Export",
-        "description": "Can view, create and update cost management exports",
-        "assignableScopes": [],
-        "permissions": [
-            {
-                "actions": [
-                    "Microsoft.CostManagement/register/action",
-                    "Microsoft.CostManagementExports/register/action",
-                    "Microsoft.Management/managementGroups/read",
-                    "Microsoft.Resources/subscriptions/read",
-                    "Microsoft.CostManagement/reports/read",
-                    "Microsoft.CostManagement/reports/action",
-                    "Microsoft.CostManagement/exports/action",
-                    "Microsoft.CostManagement/exports/read",
-                    "Microsoft.CostManagement/exports/write",
-                    "Microsoft.CostManagement/exports/run/action"
-                ],
-                "notActions": [],
-                "dataActions": [],
-                "notDataActions": []
-            }
-        ]
-    }
+  "properties": {
+    "roleName": "Cost Management Export",
+    "description": "Can view, create and update cost management exports as well as read reservations.",
+    "assignableScopes": [],
+    "permissions": [
+      {
+        "actions": [
+          "Microsoft.Capacity/reservationorders/read",
+          "Microsoft.Capacity/reservationorders/reservations/read",
+          "Microsoft.Capacity/reservationorders/reservations/revisions/read",
+          "Microsoft.CostManagement/register/action",
+          "Microsoft.CostManagementExports/register/action",
+          "Microsoft.Management/managementGroups/read",
+          "Microsoft.Resources/subscriptions/read",
+          "Microsoft.CostManagement/reports/read",
+          "Microsoft.CostManagement/reports/action",
+          "Microsoft.CostManagement/exports/action",
+          "Microsoft.CostManagement/exports/read",
+          "Microsoft.CostManagement/exports/write",
+          "Microsoft.CostManagement/exports/run/action"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ]
+  }
 }
