@@ -9,11 +9,7 @@
         },
         {
           "field": "kind",
-          "in": [
-            "StorageV2",
-            "BlobStorage",
-            "BlockBlobStorage"
-          ]
+          "in": ["StorageV2", "BlobStorage", "BlockBlobStorage"]
         }
       ]
     },
@@ -77,9 +73,9 @@
                 "deleteMode": "[toLower(parameters('deleteMode'))]",
                 "coolMode": "[toLower(parameters('coolMode'))]",
                 "archiveMode": "[toLower(parameters('archiveMode'))]",
-                "deleteEnabled": "[not(or(equals(parameters('tierToDeleteDaysNumber'), 0), equals(variables('deleteMode'), 'disabled')))]",
-                "archiveEnabled": "[not(or(equals(parameters('tierToArchiveDaysNumber'), 0), equals(variables('archiveMode'), 'disabled')))]",
-                "coolEnabled": "[not(or(equals(parameters('tierToCoolDaysNumber'), 0), equals(variables('coolMode'), 'disabled')))]",
+                "deleteEnabled": "[not(and(equals(parameters('tierToDeleteDaysNumber'), 0), equals(variables('deleteMode'), 'disabled')))]",
+                "archiveEnabled": "[not(and(equals(parameters('tierToArchiveDaysNumber'), 0), equals(variables('archiveMode'), 'disabled')))]",
+                "coolEnabled": "[not(and(equals(parameters('tierToCoolDaysNumber'), 0), equals(variables('coolMode'), 'disabled')))]",
                 "Enabled": "[or(variables('archiveEnabled'), variables('coolEnabled'), variables('deleteEnabled'))]",
                 "archiveLastModificationSetting": "[json(concat('{\"daysAfterModificationGreaterThan\": \"', parameters('tierToArchiveDaysNumber'), '\"}'))]",
                 "archiveLastAccessedSetting": "[json(concat('{\"daysAfterLastAccessTimeGreaterThan\": \"', parameters('tierToArchiveDaysNumber'), '\"}'))]",
@@ -105,12 +101,10 @@
                   "name": "[variables('resourceName')]",
                   "properties": {
                     "lastAccessTimeTrackingPolicy": {
-                        "enable": true,
-                        "name": "AccessTimeTracking",
-                        "trackingGranularityInDays": 1,
-                        "blobType": [
-                            "blockBlob"
-                        ]
+                      "enable": true,
+                      "name": "AccessTimeTracking",
+                      "trackingGranularityInDays": 1,
+                      "blobType": ["blockBlob"]
                     }
                   }
                 },
@@ -119,24 +113,24 @@
                   "apiVersion": "[variables('blobPolicyAPI')]",
                   "name": "[concat(parameters('storageAccountName'), '/default')]",
                   "dependsOn": [
-                      "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
+                    "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]"
                   ],
                   "properties": {
-                      "policy": {
-                          "rules": [
-                            {
-                                "enabled": "[variables('Enabled')]",
-                                "name": "BlobLCM",
-                                "type": "Lifecycle",
-                                "definition": {
-                                    "actions": "[variables('actionsObject')]",
-                                    "filters": {
-                                        "blobTypes": "[parameters('blobTypes')]"
-                                    }
-                                }
+                    "policy": {
+                      "rules": [
+                        {
+                          "enabled": "[variables('Enabled')]",
+                          "name": "BlobLCM",
+                          "type": "Lifecycle",
+                          "definition": {
+                            "actions": "[variables('actionsObject')]",
+                            "filters": {
+                              "blobTypes": "[parameters('blobTypes')]"
                             }
-                          ]
-                      }
+                          }
+                        }
+                      ]
+                    }
                   },
                   "condition": "[variables('Enabled')]"
                 }
@@ -216,11 +210,7 @@
         "displayName": "coolMode",
         "description": "Last Modified or Last Accessed Mode"
       },
-      "allowedValues": [
-        "LastAcccessed",
-        "LastModified",
-        "Disabled"
-      ]
+      "allowedValues": ["LastAcccessed", "LastModified", "Disabled"]
     },
     "archiveMode": {
       "type": "String",
@@ -229,11 +219,7 @@
         "displayName": "archiveMode",
         "description": "Last Modified or Last Accessed Mode"
       },
-      "allowedValues": [
-        "LastAcccessed",
-        "LastModified",
-        "Disabled"
-      ]
+      "allowedValues": ["LastAcccessed", "LastModified", "Disabled"]
     },
     "deleteMode": {
       "type": "String",
@@ -242,11 +228,7 @@
         "displayName": "deleteMode",
         "description": "Last Modified or Last Accessed Mode"
       },
-      "allowedValues": [
-        "LastAcccessed",
-        "LastModified",
-        "Disabled"
-      ]
+      "allowedValues": ["LastAcccessed", "LastModified", "Disabled"]
     },
     "effect": {
       "type": "String",
@@ -255,10 +237,7 @@
         "displayName": "Effect",
         "description": "Audit or Enforce Mode"
       },
-      "allowedValues": [
-        "AuditIfNotExists",
-        "deployIfNotExists"
-      ]
+      "allowedValues": ["AuditIfNotExists", "deployIfNotExists"]
     },
     "blobTypes": {
       "type": "Array",
