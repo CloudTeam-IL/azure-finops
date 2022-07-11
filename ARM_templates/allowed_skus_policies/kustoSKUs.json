@@ -1,0 +1,83 @@
+{
+  "properties": {
+    "displayName": "Allowed Data Explorer Cluster SKUs",
+    "policyType": "Custom",
+    "mode": "All",
+    "description": "This policy enables you to specify a set of API Management SKUs that your organization can deploy.",
+    "metadata": {
+      "version": "1.0.1"
+    },
+    "parameters": {
+      "effect": {
+        "type": "String",
+        "defaultValue": "deny",
+        "metadata": {
+          "displayName": "Effect",
+          "description": "Audit or Deny Mode"
+        },
+        "allowedValues": ["audit", "deny"]
+      },
+      "listOfAllowedSKUs": {
+        "type": "Array",
+        "metadata": {
+          "description": "The list of size SKUs that can be specified for an API Management.",
+          "displayName": "Allowed Size SKUs"
+        },
+        "allowedValues": ["Basic", "Standard"]
+      },
+      "excludeTagName": {
+        "type": "String",
+        "defaultValue": "candidate",
+        "metadata": {
+          "description": "Exclusion tag name.",
+          "displayName": "Exclusion tag name."
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Kusto/Clusters"
+          },
+          {
+            "field": "Microsoft.Kusto/Clusters/sku.tier",
+            "notIn": "[parameters('listOfAllowedSKUs')]"
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags[managed_by]",
+                "notEquals": "terraform"
+              },
+              {
+                "field": "tags",
+                "notContainsKey": "[parameters('excludeTagName')]"
+              },
+              {
+                "field": "[concat('tags[', parameters('excludeTagName'), ']')]",
+                "notEquals": "exclude"
+              }
+            ]
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags['cost-environment']",
+                "notLike": "prod*"
+              },
+              {
+                "field": "tags['cost-environment']",
+                "equals": "prodtesting"
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "[parameters('effect')]"
+      }
+    }
+  }
+}

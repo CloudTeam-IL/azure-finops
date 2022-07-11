@@ -1,0 +1,105 @@
+{
+  "properties": {
+    "displayName": "Allowed App Service Plan SKUs",
+    "policyType": "Custom",
+    "mode": "All",
+    "description": "This policy enables you to specify a set of App Service Plan SKUs that your organization can deploy.",
+    "metadata": {
+      "version": "1.0.1"
+    },
+    "parameters": {
+      "effect": {
+        "type": "String",
+        "defaultValue": "deny",
+        "metadata": {
+          "displayName": "Effect",
+          "description": "Audit or Deny Mode"
+        },
+        "allowedValues": ["audit", "deny"]
+      },
+      "listOfAllowedSKUs": {
+        "type": "Array",
+        "metadata": {
+          "description": "The list of size SKUs that can be specified for an App Service Plan.",
+          "displayName": "Allowed Size SKUs"
+        },
+        "allowedValues": [
+          "D1",
+          "F1",
+          "B1",
+          "B2",
+          "B3",
+          "S1",
+          "S2",
+          "S3",
+          "P1",
+          "P2",
+          "P3",
+          "P1V2",
+          "P2V2",
+          "P3V2",
+          "I1",
+          "I2",
+          "I3",
+          "Y1",
+          "EP1",
+          "EP2",
+          "EP3"
+        ]
+      },
+      "excludeTagName": {
+        "type": "String",
+        "defaultValue": "candidate",
+        "metadata": {
+          "description": "Exclusion tag name.",
+          "displayName": "Exclusion tag name."
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.Web/serverfarms"
+          },
+          {
+            "field": "Microsoft.Web/serverfarms/sku.name",
+            "notIn": "[parameters('listOfAllowedSKUs')]"
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags[managed_by]",
+                "notEquals": "terraform"
+              },
+              {
+                "field": "tags",
+                "notContainsKey": "[parameters('excludeTagName')]"
+              },
+              {
+                "field": "[concat('tags[', parameters('excludeTagName'), ']')]",
+                "notEquals": "exclude"
+              }
+            ]
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags['cost-environment']",
+                "notLike": "prod*"
+              },
+              {
+                "field": "tags['cost-environment']",
+                "equals": "prodtesting"
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "[parameters('effect')]"
+      }
+    }
+  }
+}
