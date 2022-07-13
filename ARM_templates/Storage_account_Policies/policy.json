@@ -1,0 +1,51 @@
+{
+    "properties": {
+        "displayName": "allowed Replication Types for the storage accounts",
+        "policyType": "Custom",
+        "mode": "All",
+        "description": "Audit or deny Replication Types for the storage accounts",
+        "metadata": {
+            "version": "1.0.0",
+            "category": "Storage"
+        },
+        "policyRule": {
+            "if": {
+                "allOf": [
+                    {
+                        "field": "type",
+                        "equals": "Microsoft.Storage/storageAccounts"
+                    },
+                    {
+                        "field": "Microsoft.Storage/storageAccounts/sku.name",
+                        "notIn": "[parameters('allowedReplicationTypes')]"
+                    }
+                ]
+            },
+            "then": {
+                "effect": "[parameters('effect')]"
+            }
+        },
+        "parameters": {
+            "allowedReplicationTypes": {
+                "type": "Array",
+                "metadata": {
+                    "displayName": "allowed Replication Types",
+                    "description": "allowed Replication Types for the storage accounts",
+                    "strongType": "storageSkus"
+                }
+            },
+            "effect": {
+                "type": "String",
+                "metadata": {
+                    "displayName": "effect",
+                    "description": "effect of the policy"
+                },
+                "defaultValue": "Audit",
+                "allowedValues": [
+                    "Audit",
+                    "Deny"
+                ]
+            }
+        }
+    }
+}

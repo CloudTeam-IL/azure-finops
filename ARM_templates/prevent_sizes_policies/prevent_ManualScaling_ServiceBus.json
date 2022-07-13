@@ -1,0 +1,101 @@
+{
+    "properties": {
+        "displayName": "Allowed EventHub SKUs",
+        "policyType": "Custom",
+        "mode": "All",
+        "description": "This policy enables you to specify a set of EventHub SKUs that your organization can deploy.",
+        "metadata": {
+            "version": "1.0.1",
+            "category": "Streaming"
+        },
+        "policyRule": {
+            "if": {
+                "allOf": [
+                    {
+                        "field": "type",
+                        "equals": "Microsoft.ServiceBus/Namespaces"
+                    },
+                    {
+                        "field": "Microsoft.ServiceBus/Namespaces/sku.name",
+                        "equals": "Premium"
+                    }
+                ]
+            },
+            "then": {
+                "effect": "DeployIfNotExists",
+                "details": {
+                    "type": "microsoft.insights/autoscalesettings",
+                    "evaluationDelay": "AfterProvisioning",
+                    "roleDefinitionIds": [
+                        "/providers/microsoft.authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c"
+                    ],
+                    "existenceCondition": {
+                        "field": "microsoft.insights/autoscalesettings/targetResourceUri",
+                        "equals": "[field('id')]"
+                    },
+                    "deployment": {
+                        "properties": {
+                            "mode": "incremental",
+                            "template": {
+                                "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                                "contentVersion": "1.0.0.0",
+                                "parameters": {
+                                    "serviceBusId": {
+                                        "type": "string"
+                                    },
+                                    "serviceBusName": {
+                                        "type": "string"
+                                    },
+                                    "serviceBusLocation": {
+                                        "type": "string"
+                                    },
+                                    "messagingUnits": {
+                                        "type": "int"
+                                    }
+                                },
+                                "resources": [
+                                    {
+                                        "type": "microsoft.insights/autoscalesettings",
+                                        "name": "[concat(parameters('serviceBusName'),'-AutoScale')]",
+                                        "apiVersion": "2015-04-01",
+                                        "location": "[parameters('serviceBusLocation')]",
+                                        "properties": {
+                                            "profiles": [
+                                                {
+                                                    "name": "AutoScale Profile",
+                                                    "capacity": {
+                                                        "minimum": "[parameters('messagingUnits')]",
+                                                        "maximum": "[parameters('messagingUnits')]",
+                                                        "default": "[parameters('messagingUnits')]"
+                                                    },
+                                                    "rules": []
+                                                }
+                                            ],
+                                            "enabled": true,
+                                            "name": "[concat(parameters('serviceBusName'),'-AutoScale')]",
+                                            "targetResourceUri": "[parameters('serviceBusId')]"
+                                        }
+                                    }
+                                ]
+                            },
+                            "parameters": {
+                                "serviceBusId": {
+                                    "value": "[field('id')]"
+                                },
+                                "serviceBusName": {
+                                    "value": "[field('name')]"
+                                },
+                                "serviceBusLocation": {
+                                    "value": "[field('location')]"
+                                },
+                                "messagingUnits": {
+                                    "value": "[field('Microsoft.ServiceBus/Namespaces/sku.capacity')]"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

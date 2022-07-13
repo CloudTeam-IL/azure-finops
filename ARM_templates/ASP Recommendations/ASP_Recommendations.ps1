@@ -113,7 +113,6 @@ function SwitchRecommendation {
         "S3" { return "S3 -> P1v3" }
         default { return "" }
     }
-
 }
 
 
