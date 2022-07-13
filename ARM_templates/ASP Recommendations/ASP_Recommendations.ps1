@@ -15,14 +15,14 @@ Param
 
 
 <#
-    This function create the blob file inside the storage container
-    INPUT:  $logName - the log file name to enter
-            $ContainerName - the container name where the log is saved
-            $ctx - the context of the storage account
-            $LogSubjects - the subjects inside the csv log file
-    
-    OUTPUT: $Blob - the created blob for future writing
-#>
+     This function create the blob file inside the storage container
+     INPUT:  $logName - the log file name to enter
+             $ContainerName - the container name where the log is saved
+             $ctx - the context of the storage account
+             $LogSubjects - the subjects inside the csv log file
+     
+     OUTPUT: $Blob - the created blob for future writing
+ #>
 function createLogFile {
     param (
         $LogName,
@@ -45,10 +45,10 @@ function createLogFile {
 
 
 <#
-    this function connect to azure via Service Principal
-    INPUT: NONE
-    OUTPUT: NONE
-#>
+     this function connect to azure via Service Principal
+     INPUT: NONE
+     OUTPUT: NONE
+ #>
 function ConnectAsService {
     Write-Output "----Service connection----"
     $runAsConnection = Get-AutomationConnection -Name 'AzureRunAsConnection' -ErrorAction Stop
@@ -57,10 +57,10 @@ function ConnectAsService {
 }
 
 <#
- This function connect to azure as managed identity
- INPUT: NONE
- OUTPUT: NONE
-#>
+  This function connect to azure as managed identity
+  INPUT: NONE
+  OUTPUT: NONE
+ #>
 function ConnectAsIdentity {
     if ($AccountName) {
         $ID = Get-AutomationVariable -Name $AccountName
@@ -81,10 +81,10 @@ function ConnectAsIdentity {
 }
 
 <#
-    This function checks if ASP has sites or not
-    INPUT: $asp - the App Service plan
-    $OUTPUT: True if it has not sites and False if it has sites
-#>
+     This function checks if ASP has sites or not
+     INPUT: $asp - the App Service plan
+     $OUTPUT: True if it has not sites and False if it has sites
+ #>
 function CheckToDelete {
     param(
         $asp
@@ -97,10 +97,10 @@ function CheckToDelete {
 
 
 <#
-    This function check convertions options to App service plan
-    INPUT: $asp - the App Service plan
-    OUTPUT: Return a string that says the convertion option or empty string
-#>
+     This function check convertions options to App service plan
+     INPUT: $asp - the App Service plan
+     OUTPUT: Return a string that says the convertion option or empty string
+ #>
 function SwitchRecommendation {
     param (
         $asp
@@ -113,16 +113,15 @@ function SwitchRecommendation {
         "S3" { return "S3 -> P1v3" }
         default { return "" }
     }
-    
 }
 
 
 <#
-    This function returns the subscription, resource group and name of a storage account from a resource id
+     This function returns the subscription, resource group and name of a storage account from a resource id
 
-    INPUT: $saID - Storage account ID
-    OUTPUT: array of the data
-#>
+     INPUT: $saID - Storage account ID
+     OUTPUT: array of the data
+ #>
 function GetStorageAccountData {
     param(
         $saID
@@ -179,4 +178,4 @@ foreach ($sub in $subs) {
             }
         }
     }
-}
+} 
