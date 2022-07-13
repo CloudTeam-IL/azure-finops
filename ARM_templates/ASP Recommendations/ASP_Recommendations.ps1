@@ -5,11 +5,11 @@ Param
     [String] $AccountType = "ManagedIdentity",
     [Parameter(Mandatory = $false)]
     [String] $AccountName = "",
-    [Parameter (Mandatory = $true)]
+    [Parameter (Mandatory = $false)]
     [String] $StorageForLogID,
     [Parameter (Mandatory = $false)]
     [String] $logsName = "Converting_Service_Plan_SKU",
-    [Parameter (Mandatory = $true)]
+    [Parameter (Mandatory = $false)]
     [String] $ContainerName
 )
 
@@ -147,15 +147,17 @@ else {
 }
 
 #connecting to the storage account and creating the blob
-$saData = GetStorageAccountData -saID $StorageForLogID
+#$saData = GetStorageAccountData -saID $StorageForLogID
 Write-Output $saData
-$LogSubjects = "Resource Name,Resource Group,Subscription,Recommendation,Need To Delete?`n"
-$subs = Get-AzSubscription -TenantId "667d9faa-186f-4608-8a36-cf595f0350fb"
-$logsName = $logsName + "_" + (Get-Date -Format "dd_MM_yyyy: HH_mm") + ".csv"
+$LogSubjects = "Resource Name,Resource Group,Subscription,Recommendation,Need To Delete?"
+$subs = Get-AzSubscription
+$logsName = $logsName + "_" + (Get-Date -Format "dd_MM_yyyy:HH_mm") + ".csv"
 New-Item -Path . -Name $logsName
-Set-AzContext -SubscriptionId $saData[0] -WarningAction SilentlyContinue
-$ctx = $(Get-AzStorageAccount -ResourceGroupName $saData[1] -Name $saData[2]).Context
-$blob = createLogFile -LogName $logsName -ContainerName $ContainerName -ctx $ctx -LogSubjects $LogSubjects
+Start-Sleep -Seconds 5
+Add-Content -Path "./$logsName" -Value $LogSubjects
+#Set-AzContext -SubscriptionId $saData[0] -WarningAction SilentlyContinue
+#$ctx = $(Get-AzStorageAccount -ResourceGroupName $saData[1] -Name $saData[2]).Context
+#$blob = createLogFile -LogName $logsName -ContainerName $ContainerName -ctx $ctx -LogSubjects $LogSubjects
 #itterating over all the subscriptions
 foreach ($sub in $subs) {
     Set-AzContext -SubscriptionName $sub.Name -WarningAction SilentlyContinue
@@ -168,14 +170,16 @@ foreach ($sub in $subs) {
             #checking if the ASP has any sites
             if (CheckToDelete -asp $plan) {
                 #tagging for deletion and logging
-                Update-AzTag -ResourceId $plan.Id -Tag @{"Candidate" = "DeleteASP" } -Operation Merge
-                $blob.ICloudBlob.AppendText("$($plan.Name),$($r),$($sub.Name),X,V`n")
+                #Update-AzTag -ResourceId $plan.Id -Tag @{"Candidate" = "DeleteASP" } -Operation Merge
+                #$blob.ICloudBlob.AppendText("$($plan.Name),$($r),$($sub.Name),X,V`n")
+                Add-Content -Path "./$($logsName)" -Value "$($plan.Name),$($r),$($sub.Name),X,V"
             }
             #Checking if there is a recommendations for the plan
             elseif ($recommendation = SwitchRecommendation -asp $plan) {
                 #tagging for convertion and logging
-                Update-AzTag -ResourceId $plan.Id -Tag @{"Candidate" = "Convert: $($recommendation)" } -Operation Merge
-                $blob.ICloudBlob.AppendText("$($plan.Name), $($r),$($sub.Name),$($recommendation),X`n")
+                #Update-AzTag -ResourceId $plan.Id -Tag @{"Candidate" = "Convert: $($recommendation)" } -Operation Merge
+                #$blob.ICloudBlob.AppendText("$($plan.Name), $($r),$($sub.Name),$($recommendation),X`n")
+                Add-Content -Path "./$($logsName)" -Value "$($plan.Name), $($r),$($sub.Name),$($recommendation),X"
             }
         }
     }
