@@ -6,6 +6,7 @@ param (
     [Parameter()]
     [string] $TenantId
 )
+#connecting to azure based on the parameters
 function ConnectToAzure {
     param (
         [Parameter()]
@@ -41,12 +42,15 @@ if (-not $(ConnectToAzure -TenantId $TenantId)) {
     exit 1
 }
 else { Write-Output "Successfully Connected to Azure." }
+#getting all subs
 $subs = Get-AzSubscription -WarningAction SilentlyContinue | Where-Object { $_.State.ToLower() -eq "enabled" }
 $count = 0
 foreach ($sub in $subs) {
     Set-AzContext $sub.Id
+    #getting all the stopped vms
     $allVms = Get-AzVM -Status | Where-Object { $_.PowerState.ToLower() -eq "vm stopped" }
     Write-Host "$($allVms.Count) Stopped Vms" -ForegroundColor Cyan
+    #deallocating 5 vms at once
     $allVms | ForEach-Object -Parallel {
         Write-Host "Deallocating $($_.Name)" -ForegroundColor Cyan
         Stop-AzVM -ResourceGroupName $_.ResourceGroupName -Name $_.Name -Force
