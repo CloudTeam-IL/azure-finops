@@ -1,0 +1,84 @@
+{
+  "properties": {
+    "displayName": "Allowed Service Bus SKUs",
+    "policyType": "Custom",
+    "mode": "All",
+    "description": "This policy enables you to specify a set of Service Bus SKUs that your organization can deploy.",
+    "metadata": {
+      "version": "1.0.1"
+    },
+    "parameters": {
+      "effect": {
+        "type": "String",
+        "defaultValue": "deny",
+        "metadata": {
+          "displayName": "Effect",
+          "description": "Audit or Deny Mode"
+        },
+        "allowedValues": ["audit", "deny"]
+      },
+      "listOfAllowedSKUs": {
+        "type": "Array",
+        "defaultValue": ["Basic", "Standard"],
+        "metadata": {
+          "description": "The list of size SKUs that can be specified for an Service Bus.",
+          "displayName": "Allowed Size SKUs"
+        },
+        "allowedValues": ["Basic", "Standard", "Premium"]
+      },
+      "excludeTagName": {
+        "type": "String",
+        "defaultValue": "candidate",
+        "metadata": {
+          "description": "Exclusion tag name.",
+          "displayName": "Exclusion tag name."
+        }
+      }
+    },
+    "policyRule": {
+      "if": {
+        "allOf": [
+          {
+            "field": "type",
+            "equals": "Microsoft.ServiceBus/namespaces"
+          },
+          {
+            "field": "Microsoft.ServiceBus/namespaces/sku.name",
+            "notIn": "[parameters('listOfAllowedSKUs')]"
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags[managed_by]",
+                "notEquals": "terraform"
+              },
+              {
+                "field": "tags",
+                "notContainsKey": "[parameters('excludeTagName')]"
+              },
+              {
+                "field": "[concat('tags[', parameters('excludeTagName'), ']')]",
+                "notEquals": "exclude"
+              }
+            ]
+          },
+          {
+            "anyOf": [
+              {
+                "field": "tags['cost-environment']",
+                "notLike": "prod*"
+              },
+              {
+                "field": "tags['cost-environment']",
+                "equals": "prodtesting"
+              }
+            ]
+          }
+        ]
+      },
+      "then": {
+        "effect": "[parameters('effect')]"
+      }
+    }
+  }
+}
