@@ -82,6 +82,15 @@ Param (
         })]
     [String]$FilePath,
 
+    [Parameter (Mandatory = $false)]
+    [String] $CloudteamIncluded = $true,
+
+    [Parameter (Mandatory = $true)]
+    [String] $CompanyName,
+
+    [Parameter (Mandatory = $false)]
+    [string] $subId,
+
     [Parameter(ParameterSetName = 'CreateOrGetServicePrincipal')]
     [Switch]$CreateOrGetServicePrincipal,
 
@@ -129,6 +138,22 @@ Param (
 # Check if connected to AzureAD and ARM if not connect 
 if (-not $(Get-AzContext -ErrorAction SilentlyContinue)) { Connect-AzAccount | Out-Null }
 try { Get-AzureADDomain | Out-Null } catch { AzureAD.Standard.Preview\Connect-AzureAD -Identity -TenantID $env:ACC_TID | Out-Null }
+
+
+function SendRestRequest {
+    param(
+        $uri,
+        $Header,
+        $body,
+        $method
+    )
+    $respons = Invoke-RestMethod -Method $method -Uri $uri -Headers $Header -Body $body
+    if ($respons.Status -lt 200 -or $respons.Status -gt 300) {
+        Write-Host "ERROR: $($respons.error)" -ForegroundColor Red
+    }
+}
+
+
 
 # Create Service Principal
 function CreateOrGetServicePrincipal {
@@ -211,7 +236,7 @@ function InviteOrGetGuestUsers {
     $usersList = $($CSVFile.Users | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
     $usersCheck = @()
 
-    if ($usersList) {
+    if ($usersList -and $CloudteamIncluded) {
         # Loop over the list of users from the CSV file varaible
         foreach ($user in $usersList) {
             # Check if a user with the same Mail address or UserPrincipalName already exist in Azure AD
@@ -317,16 +342,17 @@ function CreateOrGetStorageAccount {
     # Get and import the CSV file, after that get the data from the relevant collumn
     $path = Get-ChildItem -Path $FilePath | Select-Object -ExpandProperty FullName
     $CSVFile = Import-Csv -Path $path -ErrorAction SilentlyContinue
-    $storageAccountSubscription = $($CSVFile.StorageAccountSubscription | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
+    $storageAccountSubscription = $subId ? $subId : (Get-AzContext).Subscription.Id
     $storageAccountResourceGroup = $($CSVFile.StorageAccountResourceGroup | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
     $storageAccountName = $($CSVFile.StorageAccountName | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
+    $storageAccountName = $storageAccountName.Replace("@@", $CompanyName.Replace(' ', '').Replace('[^a-zA-Z0-9]', '').Substring(0, 4).ToLower()) + [string](Get-Random -Minimum 100 -Maximum 999)
     $location = $($CSVFile.Location | Where-Object { $_.PSObject.Properties.Value -ne '' }).Trim()
 
     # If the one of the following varaibles with the values from the CSV file equal to 'Not Relevant' return a null value from the function
     if ($storageAccountSubscription -eq 'Not Relevant' -or $storageAccountName -eq 'Not Relevant') { return $null }
 
     # Find if the subscription exist
-    $subscription = Get-AzSubscription -SubscriptionName $storageAccountSubscription -ErrorAction SilentlyContinue
+    $subscription = Get-AzSubscription -SubscriptionId $storageAccountSubscription -ErrorAction SilentlyContinue
     if (-not $subscription) {
         Write-Error "Subscription with name $storageAccountSubscription was not found" -ErrorAction Stop
     }
@@ -334,7 +360,9 @@ function CreateOrGetStorageAccount {
     else { 
         if ($(Get-AzContext).Subscription.Name -ne $subscription.Name) { 
             # Change to the relevant subscription for the storage account
-            $subscriptionCheck = Set-AzContext -SubscriptionName $subscription.Name
+            if ($subId) {
+                $subscriptionCheck = Set-AzContext -Subscription $subId
+            }
             if ($subscriptionCheck) { Write-Host "Changed to subscription $($subscription.Name)" -ForegroundColor Green }
             else { Write-Error "Failed to change to subscription $($subscription.Name)" -ErrorAction Stop }
         }
@@ -673,6 +701,14 @@ function AssignRolesToScopeAndIdIfExist {
         if ($ObjectIds['AzureADGroup'] -and $AzureADGroupRoles) { $objectIdsRolesTable[$ObjectIds['AzureADGroup']] = $AzureADGroupRoles }
         # Call the AssignRolesToScope for assigning roles to the passed assignment scope
         AssignRolesToScope -ObjectIdsRolesTable $objectIdsRolesTable -AssignmentScope $AssignmentScope
+    }
+}
+
+if (-not (Get-Command openssl)) {
+    if ($IsWindows) {
+        Invoke-WebRequest -Method "GET" -Uri "https://mirror.firedaemon.com/OpenSSL/openssl-3.0.5.zip" -OutFile "$($env:TEMP)\openssl-3.zip"
+        Expand-Archive -LiteralPath '.\openssl-3.zip' -DestinationPath $env:TEMP
+        $RunPath = "$($env:TEMP)\x64\bin\openssl.exe"
     }
 }
 
