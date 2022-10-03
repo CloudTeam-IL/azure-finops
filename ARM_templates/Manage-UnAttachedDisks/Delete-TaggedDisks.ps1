@@ -5,23 +5,23 @@
 #>
 Param
 (
-    [Parameter (Mandatory = $false)]
-    [ValidateSet(“ManagedIdentity”,”ServicePrincipal”)]
-    [String] $AccountType = "ManagedIdentity",
+	[Parameter (Mandatory = $false)]
+	[ValidateSet(“ManagedIdentity”, ”ServicePrincipal”)]
+	[String] $AccountType = "ManagedIdentity",
 	[Parameter(Mandatory = $false)]
-    [String] $AccountName = "",
-    [Parameter (Mandatory=$true)]
-    [String] $SubForLog,
-    [Parameter (Mandatory=$true)]
-    [String] $StorageAccName,
-    [Parameter (Mandatory=$true)]
-    [String] $ResourceGroupName,
-    [Parameter (Mandatory = $false)]
-    [String] $ContainerName = "deleteunattacheddiskslogs",
-    [Parameter (Mandatory = $false)]
-    [String] $logsName = "Delete-Disks-Log",
-    [Parameter (Mandatory = $false)]
-    [String] $Format = "dd-MM-yyyy"
+	[String] $AccountName = "",
+	[Parameter (Mandatory = $true)]
+	[String] $SubForLog,
+	[Parameter (Mandatory = $true)]
+	[String] $StorageAccName,
+	[Parameter (Mandatory = $true)]
+	[String] $ResourceGroupName,
+	[Parameter (Mandatory = $false)]
+	[String] $ContainerName = "deleteunattacheddiskslogs",
+	[Parameter (Mandatory = $false)]
+	[String] $logsName = "Delete-Disks-Log",
+	[Parameter (Mandatory = $false)]
+	[String] $Format = "dd-MM-yyyy"
 )
 #this function check if item is in list
 function FindItemInList {
@@ -29,8 +29,7 @@ function FindItemInList {
 		$listOfItems,
 		$desiredItem
 	)
-	foreach($Item in $listOfItems)
-	{
+	foreach ($Item in $listOfItems) {
 		if ($Item.Name -eq $desiredItem) {
 			return 1
 		}
@@ -45,9 +44,9 @@ function FindItemInList {
 #>
 function ServiceConnect {
 	Write-Output "----Service connection----"
-        $runAsConnection = Get-AutomationConnection -Name 'AzureRunAsConnection' -ErrorAction Stop
-        Add-AzAccount -ServicePrincipal -Tenant $runAsConnection.TenantId -ApplicationId $runAsConnection.ApplicationId `
-            -CertificateThumbprint $runAsConnection.CertificateThumbprint -ErrorAction Stop | Out-Null
+	$runAsConnection = Get-AutomationConnection -Name 'AzureRunAsConnection' -ErrorAction Stop
+	Add-AzAccount -ServicePrincipal -Tenant $runAsConnection.TenantId -ApplicationId $runAsConnection.ApplicationId `
+		-CertificateThumbprint $runAsConnection.CertificateThumbprint -ErrorAction Stop | Out-Null
 }
 
 <#
@@ -56,25 +55,22 @@ function ServiceConnect {
  dosnt return anything
 #>
 function IdentityConnect {
-	if($AccountName){
-        $ID = Get-AutomationVariable -Name $AccountName
-    }
-    else
-    {
-        $ID = ""
-    }
-    Write-Output "----Identity connection-----"
-    Disable-AzContextAutosave -Scope Process | Out-Null
-    if($ID)
-    {
-        Write-Output "----User assigned----"
-        Connect-AzAccount -Identity -AccountId $ID
-    }
-    else
-    {
-        Write-Output "----System assigned----"
-        Connect-AzAccount -Identity
-    }
+	if ($AccountName) {
+		$ID = Get-AutomationVariable -Name $AccountName
+	}
+	else {
+		$ID = ""
+	}
+	Write-Output "----Identity connection-----"
+	Disable-AzContextAutosave -Scope Process | Out-Null
+	if ($ID) {
+		Write-Output "----User assigned----"
+		Connect-AzAccount -Identity -AccountId $ID
+	}
+	else {
+		Write-Output "----System assigned----"
+		Connect-AzAccount -Identity
+	}
 }
 
 <#
@@ -90,11 +86,11 @@ function CreateBlobStorage {
 	)
 	#creating the blob
 	$BlobFile = @{
-		File = ".\$($logsName)"
-		Container =$ContainerName
-		Blob = $logsName
-		Context =$ctx
-		BlobType = "Append"
+		File      = ".\$($logsName)"
+		Container = $ContainerName
+		Blob      = $logsName
+		Context   = $ctx
+		BlobType  = "Append"
 	}
 	#pushing the blob to the container
 	$Blob = Set-AzStorageBlobContent @BlobFile
@@ -126,8 +122,7 @@ function ConnectToLogFile {
 		$Blob.ICloudBlob.AppendText($LogSubjects)
 	}
 	#if the container is exists
-	else
-	{
+	else {
 		#getting all the blobs from the container
 		$AllBlobs = Get-AzStorageBlob -Context $ctx -Container $ContainerName
 		#checking if the log blob exists
@@ -141,8 +136,7 @@ function ConnectToLogFile {
 			$Blob.ICloudBlob.AppendText($LogSubjects)
 		}
 		#if the blob exists
-		else
-		{
+		else {
 			#save the blob
 			$Blob = Get-AzStorageBlob -Container $ContainerName -Context $ctx -Blob $logsName
 		}
@@ -163,12 +157,18 @@ function CreateSnapshot {
 		$rg,
 		$CurrentDate
 	)
-	Write-Output "----Snapshot $($disk.Name)----"
+	Write-Verbose "---Snapshot $($disk.name)---" -verbose
 	$snapshot = New-AzSnapshotConfig -SourceUri $disk.Id -Location $loc -CreateOption copy
 	#creating the new snapshot
-	$newSnapshot = New-AzSnapshot -Snapshot $snapshot -SnapshotName $snapshotName -ResourceGroupName $rg
+	$newSnapshot = New-AzSnapshot -Snapshot $snapshot -SnapshotName $snapshotName -ResourceGroupName $rg -ErrorAction SilentlyContinue
 	#adding tag to delete after 90 days
-	Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"Candidate"=$CurrentDate} -Operation Merge
+	if ($newSnapshot) {
+		Write-Verbose "Snapshot created for $($disk.Id)" -verbose
+		Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"Candidate" = $CurrentDate } -Operation Merge
+	}
+	else {
+		Write-Error "Cant snapshot"
+	}
 	return $newSnapshot
 }
 
@@ -185,45 +185,43 @@ function DeleteAndLog {
 		$loc,
 		$sub
 	)
-	Write-Output "----deleting $($disk.Name)----"
-	Remove-AzDisk -ResourceGroupName $rg -DiskName $disk.Name -Force
-    $Deleted = Get-AzDisk -ResourceGroupName $disk.ResourceGroupName -DiskName $disk.Name -ErrorAction silentlycontinue
-    if(!$Deleted)
-    {
-    	#creating the log string
+	Write-Verbose "---Deleting $($disk.name)---" -verbose
+	Remove-AzDisk -ResourceGroupName $rg -DiskName $disk.Name -Force -ErrorAction silentlycontinue
+	$Deleted = Get-AzDisk -ResourceGroupName $disk.ResourceGroupName -DiskName $disk.Name -ErrorAction silentlycontinue
+	if (!$Deleted) {
+		Write-Verbose "$($disk.Id) Deleted" -verbose
+		#creating the log string
 		$LogValues = "$($disk.Id),$($newSnapshot.Id),$($loc),$($rg),$($sub.Name),$($disk.DiskSizeGB),$($disk.Sku.Name),Success`n"
 		#appending the log into the log file
-   		$Blob.ICloudBlob.AppendText($LogValues)
-    }
-    else
-    {
-		$LogValues = "$($disk.Id),$($newSnapshot.Id),$($loc),$($rg),$($sub.Name),$($disk.DiskSizeGB),$($disk.Sku.Name),Failed`n"
 		$Blob.ICloudBlob.AppendText($LogValues)
-        Write-Output "---- cannot delete $($disk.Name) ----"
-    }
+	}
+	else {
+		$LogValues = "$($disk.Id),$($newSnapshot.Id),$($loc),$($rg),$($sub.Name),$($disk.DiskSizeGB),$($disk.Sku.Name),Failed`n"
+		# $Blob.ICloudBlob.AppendText($LogValues)
+		Write-Error "Cant Delete"
+	}
 	
 }
 
 #all the major vars\
 $logsName = $logsName + ".csv"
-$LogSubjects ="Resource Id,Snapshot Id,Region,Resource Group,Subscription,Size,Type,Status`n"
+$LogSubjects = "Resource Id,Snapshot Id,Region,Resource Group,Subscription,Size,Type,Status`n"
 $LogValues = ""
 $CurrentDate = Get-Date -Format $Format
 #connecting to azure account
-if($env:AUTOMATION_ASSET_ACCOUNTID)
-{
+if ($env:AUTOMATION_ASSET_ACCOUNTID) {
 	Write-Output "----Connecting----"
-    if($AccountType -eq "ServicePrincipal")
-    {
+	if ($AccountType -eq "ServicePrincipal") {
 		ServiceConnect
-    }
-    else
-    {
-        IdentityConnect
-    }
-}else {
+	}
+	else {
+		IdentityConnect
+	}
+}
+else {
 	Connect-AzAccount
 }
+
 #connecting to the logging subscription
 $allSubs = Get-AzSubscription
 Set-AzContext -SubscriptionName $SubForLog
@@ -235,26 +233,26 @@ $ctx = $StorageAcc.Context
 $allContainers = Get-AzStorageContainer -Context $ctx
 $Blob = ConnectToLogFile -allContainers $allContainers -ContainerName $ContainerName -logsName $logsName -ctx $ctx -LogSubjects $LogSubjects
 #iterating through all the subscriptions
-foreach ($sub in $allSubs)
-{
+foreach ($sub in $allSubs) {
 	#connecting to the subscription
 	Set-AzContext -SubscriptionName $sub.Name | Out-Null
 	Write-Output "---- $($sub.Name) ----"
 	#getting all the disks from the subscription
-	$allDisks = Get-AzDisk
+	$allDisks = Get-azDisk | Where-Object { -not $_.ManagedBy }
 	#iterating through all the disks
-	foreach ($disk in $allDisks)
-	{
+	foreach ($disk in $allDisks) {
 		#if the disk have the deletion tag
 		if ($disk.Tags.Candidate -eq "DeleteUnAttached") {
 			$rg = $disk.ResourceGroupName
 			$loc = $disk.Location
 			$snapshotName = "$($disk.Name)_snapShot"
 			#creating the snapshot configuration
-            #-AccountType Standard_LRS
+			#-AccountType Standard_LRS
 			$newSnapshot = CreateSnapshot -disk $disk -loc $loc -snapshotName $snapshotName -rg $rg -CurrentDate $CurrentDate
 			#deleting the disk
-			DeleteAndLog -rg $rg -disk $disk -newSnapshot $newSnapshot -loc $loc -sub $sub
+			if ($newSnapshot) {
+				DeleteAndLog -rg $rg -disk $disk -newSnapshot $newSnapshot -loc $loc -sub $sub
+			}
 		}
 	}
 }
