@@ -116,7 +116,7 @@ try {
         foreach ($resource in $taggedResourcesDisks) {
             if ($resource.tags.Candidate) {
                 $excludeAttachedDisks = "Attached"
-                # $tags = $resource.Tags.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" } 
+                $tags = $resource.Tags.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" } 
                 if ($diskInfo = Get-AzDisk -ResourceGroupName $resource.ResourceGroupName -DiskName $resource.Name | Where-Object { $excludeAttachedDisks -notcontains $_.DiskState }) {
                     Write-Output "----Snapshot $($disk.Name)----"
                     $snapshot = New-AzSnapshotConfig -SourceUri $diskInfo.Id -Location $diskInfo.Location -CreateOption copy
