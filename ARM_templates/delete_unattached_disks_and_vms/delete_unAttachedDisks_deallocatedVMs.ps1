@@ -16,17 +16,17 @@
 
 
 PARAM(
-    [parameter (Mandatory=$false)]
+    [parameter (Mandatory = $false)]
     [string] $AccountType = "ManagedIdentity",
-    [parameter (Mandatory=$false)]
+    [parameter (Mandatory = $false)]
     [string] $AccountName = "",
-    [parameter (Mandatory = $true)]
+    [parameter (Mandatory = $false)]
     [string] $SubForLog,
-    [parameter (Mandatory = $true)]
+    [parameter (Mandatory = $false)]
     [string] $ResourceGroupName,
-    [parameter (Mandatory = $true)]
+    [parameter (Mandatory = $false)]
     [string] $StorageAccName,
-    [parameter (Mandatory = $true)]
+    [parameter (Mandatory = $false)]
     [String] $BlobContainerName
 )
 
@@ -50,46 +50,65 @@ try {
                 Connect-AzAccount -Identity -AccountId $ID
             }
         }
-    }else {
+    }
+    else {
         Connect-AzAccount
     }
     # Initialzie the blob stprage connection using the connection string parameter
-    $StorageAcc = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccName
-    $ctx = $StorageAcc.Context
+    # Set-AzContext -SubscriptionName $SubForLog
+    # $StorageAcc = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccName
+    # $ctx = $StorageAcc.Context
     # Get the current time by timezone
     $CurrentTime = Get-Date -Format "dd-MM-yyyy_HH:mm:ss"
     $CurrentDate = Get-Date -Format "dd-MM-yyyy"
     # Creating the name of the CSV file blob
-    $blobName = $("deleted_unattached_disks_and_vms_$($CurrentTime).csv")
+    # $blobName = $("deleted_unattached_disks_and_vms_$($CurrentTime).csv")
     # Craeting the temporary local CSV file
-    New-Item -Name "tempFile.csv" -ItemType File -Force | Out-Null
+    # New-Item -Name "tempFile.csv" -ItemType File -Force | Out-Null
     # Copying the the temporary CSV file to the blob storage container as an append blob
-    Set-AzStorageBlobContent -File ".\tempFile.csv" -Blob $blobName -Container $BlobContainerName -BlobType Append -Context $ctx -Force | Out-Null
+    # Set-AzStorageBlobContent -File ".\tempFile.csv" -Blob $blobName -Container $BlobContainerName -BlobType Append -Context $ctx -Force | Out-Null
     # Get the CSV file blob from the container in the storage account
-    $blobStorage = Get-AzStorageBlob -Blob $blobName -Container $BlobContainerName -Context $ctx
+    # $blobStorage = Get-AzStorageBlob -Blob $blobName -Container $BlobContainerName -Context $ctx
     # Add the header to the CSV file
-    $blobStorage.ICloudBlob.AppendText("subscription_name,resource_group,location,resource_id,size,tags`n")
+    # $blobStorage.ICloudBlob.AppendText("subscription_name,resource_group,location,resource_id,size,tags`n")
 
-
+    $tagname = "Candidate"
+    $TagValue = "DeleteMe"
     # Iterate all subscriptions
-    Get-AzSubscription | Where-Object { ($_.Name -match ".*") -and ($_.State -eq 'Enabled') } | ForEach-Object {
-        $subscriptionName = $_.Name
-        Write-Output ('Switching to subscription: {0}' -f $_.Name)
-        $null = Set-AzContext -SubscriptionObject $_ -Force
-    
-          
+    $subs = Get-AzSubscription | Where-Object { $_.State -eq 'Enabled' }
+    foreach ($sub in $subs ) {
+        $subscriptionName = $sub.Name
+        Write-Output ('Switching to subscription: {0}' -f $sub.Name)
+        $null = Set-AzContext -SubscriptionObject $sub -Force
 
-        $tagname = "Candidate"
-        $TagValue = "DeleteMe"
-        $taggedResourcesVms = Get-AzResource -ResourceType Microsoft.Compute/virtualMachines -TagName $tagname -TagValue $TagValue
-        $taggedResourcesDisks = Get-AzResource -ResourceType Microsoft.Compute/Disks -TagName $tagname -TagValue $TagValue
+        $taggedResourcesVms = Get-AzResource -ResourceType "Microsoft.Compute/virtualMachines" -TagName $tagname -TagValue $TagValue
+        $taggedResourcesDisks = Get-AzResource -ResourceType "Microsoft.Compute/Disks" -TagName $tagname -TagValue $TagValue
         #itterating over all the vms with the tag and deleting them
         foreach ( $resource in $taggedResourcesVms) {
             if ($resource.tags.Candidate) {
+                Write-Host "test"
                 $vmSize = Get-AzVM -ResourceGroupName $resource.ResourceGroupName -Name $resource.Name
-                $tags = $resource.Tags.GetEnumerator() | ForEach-Object {"$($_.Key): $($_.Value)"} 
-                $blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($vmSize.HardwareProfile.VmSize), $($tags)`n")
-                Write-Output('will remove {0} resources' -f $resource.Count) 
+                $changed = $false
+                if ($vmSize.StorageProfile.OsDisk.DeleteOption -ne "Detach") {
+                    $vmSize.StorageProfile.OsDisk.DeleteOption = "Detach"
+                    $changed = $true
+                }
+                for ($i = 0; $i -lt $vmSize.StorageProfile.DataDisks.Count; $i++) {
+                    if ($vmSize.StorageProfile.DataDisks[$i].DeleteOption -ne "Detach") {
+                        $vmSize.StorageProfile.DataDisks[$i].DeleteOption = "Detach"
+                        $changed = $true
+                    }
+                }
+                if ($changed) {
+                    Write-Output "detaching disks from vms and deleting the vms"
+                    if (-not (update-azvm -VM $vmSize -ResourceGroupName $vmSize.ResourceGroupName -ErrorAction SilentlyContinue)) {
+                        Write-Host "couldnt update vm"
+                        continue
+                    }
+                }
+                $tags = $resource.Tags.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" } 
+                # $blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($vmSize.HardwareProfile.VmSize), $($tags)`n")
+                Write-Output "will delete $($resource.Id)"
                 Remove-AzResource -ResourceId $resource.Id -Force
             }
         }
@@ -97,17 +116,21 @@ try {
         foreach ($resource in $taggedResourcesDisks) {
             if ($resource.tags.Candidate) {
                 $excludeAttachedDisks = "Attached"
-                $tags = $resource.Tags.GetEnumerator() | ForEach-Object {"$($_.Key): $($_.Value)"} 
-                $diskInfo = Get-AzDisk -ResourceGroupName $resource.ResourceGroupName -DiskName $resource.Name | Where-Object {$excludeAttachedDisks -notcontains $_.DiskState}
-                Write-Output "----Snapshot $($disk.Name)----"
-	            $snapshot = New-AzSnapshotConfig -SourceUri $diskInfo.Id -Location $diskInfo.Location -CreateOption copy
-	            #creating the new snapshot
-	            $newSnapshot = New-AzSnapshot -Snapshot $snapshot -SnapshotName "$($diskInfo.Name)-Snapshot" -ResourceGroupName $diskInfo.ResourceGroupName
-	            #adding tag to delete after 90 days
-	            Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"MarkedForDelete"=$CurrentDate} -Operation Merge
-                $blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($diskInfo.DiskSizeGB), $($tags)`n")
-                Write-Output('will remove {0} resources' -f $resource.Count)
-                Remove-AzResource -ResourceId $diskInfo.Id -Force
+                # $tags = $resource.Tags.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" } 
+                if ($diskInfo = Get-AzDisk -ResourceGroupName $resource.ResourceGroupName -DiskName $resource.Name | Where-Object { $excludeAttachedDisks -notcontains $_.DiskState }) {
+                    Write-Output "----Snapshot $($disk.Name)----"
+                    $snapshot = New-AzSnapshotConfig -SourceUri $diskInfo.Id -Location $diskInfo.Location -CreateOption copy
+                    #creating the new snapshot
+                    $newSnapshot = New-AzSnapshot -Snapshot $snapshot -SnapshotName "$($diskInfo.Name)-Snapshot1" -ResourceGroupName $diskInfo.ResourceGroupName -ErrorAction SilentlyContinue
+                    Write-Host "here"
+                    #adding tag to delete after 90 days
+                    if ($newSnapshot) {
+                        Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"MarkedForDelete" = $CurrentDate } -Operation Merge
+                        #$blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($diskInfo.DiskSizeGB), $($tags)`n")
+                        Write-Output "will delete $($resource.Id)"
+                        Remove-AzResource -ResourceId $diskInfo.Id -Force
+                    }
+                }
             }
         }
         
