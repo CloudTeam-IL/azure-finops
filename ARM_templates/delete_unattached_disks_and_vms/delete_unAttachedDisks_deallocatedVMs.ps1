@@ -20,13 +20,13 @@ PARAM(
     [string] $AccountType = "ManagedIdentity",
     [parameter (Mandatory = $false)]
     [string] $AccountName = "",
-    [parameter (Mandatory = $false)]
+    [parameter (Mandatory = $true)]
     [string] $SubForLog,
-    [parameter (Mandatory = $false)]
+    [parameter (Mandatory = $true)]
     [string] $ResourceGroupName,
-    [parameter (Mandatory = $false)]
+    [parameter (Mandatory = $true)]
     [string] $StorageAccName,
-    [parameter (Mandatory = $false)]
+    [parameter (Mandatory = $true)]
     [String] $BlobContainerName
 )
 
@@ -55,22 +55,22 @@ try {
         Connect-AzAccount
     }
     # Initialzie the blob stprage connection using the connection string parameter
-    # Set-AzContext -SubscriptionName $SubForLog
-    # $StorageAcc = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccName
-    # $ctx = $StorageAcc.Context
+    Set-AzContext -SubscriptionName $SubForLog
+    $StorageAcc = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccName
+    $ctx = $StorageAcc.Context
     # Get the current time by timezone
     $CurrentTime = Get-Date -Format "dd-MM-yyyy_HH:mm:ss"
     $CurrentDate = Get-Date -Format "dd-MM-yyyy"
     # Creating the name of the CSV file blob
-    # $blobName = $("deleted_unattached_disks_and_vms_$($CurrentTime).csv")
+    $blobName = $("deleted_unattached_disks_and_vms_$($CurrentTime).csv")
     # Craeting the temporary local CSV file
-    # New-Item -Name "tempFile.csv" -ItemType File -Force | Out-Null
+    New-Item -Name "tempFile.csv" -ItemType File -Force | Out-Null
     # Copying the the temporary CSV file to the blob storage container as an append blob
-    # Set-AzStorageBlobContent -File ".\tempFile.csv" -Blob $blobName -Container $BlobContainerName -BlobType Append -Context $ctx -Force | Out-Null
+    Set-AzStorageBlobContent -File ".\tempFile.csv" -Blob $blobName -Container $BlobContainerName -BlobType Append -Context $ctx -Force | Out-Null
     # Get the CSV file blob from the container in the storage account
-    # $blobStorage = Get-AzStorageBlob -Blob $blobName -Container $BlobContainerName -Context $ctx
+    $blobStorage = Get-AzStorageBlob -Blob $blobName -Container $BlobContainerName -Context $ctx
     # Add the header to the CSV file
-    # $blobStorage.ICloudBlob.AppendText("subscription_name,resource_group,location,resource_id,size,tags`n")
+    $blobStorage.ICloudBlob.AppendText("subscription_name,resource_group,location,resource_id,size,tags`n")
 
     $tagname = "Candidate"
     $TagValue = "DeleteMe"
@@ -107,7 +107,7 @@ try {
                     }
                 }
                 $tags = $resource.Tags.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" } 
-                # $blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($vmSize.HardwareProfile.VmSize), $($tags)`n")
+                $blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($vmSize.HardwareProfile.VmSize), $($tags)`n")
                 Write-Output "will delete $($resource.Id)"
                 Remove-AzResource -ResourceId $resource.Id -Force
             }
@@ -126,7 +126,7 @@ try {
                     #adding tag to delete after 90 days
                     if ($newSnapshot) {
                         Update-AzTag -ResourceId $newSnapshot.Id -Tag @{"MarkedForDelete" = $CurrentDate } -Operation Merge
-                        #$blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($diskInfo.DiskSizeGB), $($tags)`n")
+                        $blobStorage.ICloudBlob.AppendText("$subscriptionName, $($resource.ResourceGroupName), $($resource.location), $($resource.ResourceId), $($diskInfo.DiskSizeGB), $($tags)`n")
                         Write-Output "will delete $($resource.Id)"
                         Remove-AzResource -ResourceId $diskInfo.Id -Force
                     }
