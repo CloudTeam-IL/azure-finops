@@ -1,0 +1,32 @@
+{
+    "properties": {
+        "displayName": "Deny V1 Storage Accounts",
+        "policyType": "Custom",
+        "mode": "All",
+        "description": "deny V1 Storage accounts",
+        "metadata": {
+            "version": "1.0.0",
+            "category": "Storage"
+        },
+        "policyRule": {
+            "if": {
+                "allOf": [
+                    {
+                        "field": "type",
+                        "equals": "Microsoft.Storage/storageAccounts"
+                    },
+                    {
+                        "field": "Microsoft.Storage/storageAccounts/kind",
+                        "In": [
+                            "Storage",
+                            "BlobStorage"
+                        ]
+                    }
+                ]
+            },
+            "then": {
+                "effect": "Deny"
+            }
+        }
+    }
+}
