@@ -8,6 +8,24 @@
             "version": "1.0.0",
             "category": "Storage"
         },
+        "parameters": {
+            "Key": {
+                "type": "String",
+                "metadata": {
+                    "description": "The key of the tag to exclude",
+                    "displayName": "tag's key"
+                },
+                "defaultValue": ""
+            },
+            "Value": {
+                "type": "String",
+                "metadata": {
+                    "description": "The Value of the tag to exclude",
+                    "displayName": "tag's value"
+                },
+                "defaultValue": ""
+            }
+        },
         "policyRule": {
             "if": {
                 "allOf": [
@@ -16,11 +34,25 @@
                         "equals": "Microsoft.Storage/storageAccounts"
                     },
                     {
-                        "field": "Microsoft.Storage/storageAccounts/kind",
+                        "field": "kind",
                         "In": [
                             "Storage",
                             "BlobStorage"
                         ]
+                    },
+                    {
+                        "not": {
+                            "allOf": [
+                                {
+                                    "field": "tags",
+                                    "containsKey": "[parameters('Key')]"
+                                },
+                                {
+                                    "field": "[concat('tags[', parameters('Key'), ']')]",
+                                    "equals": "[parameters('Value')]"
+                                }
+                            ]
+                        }
                     }
                 ]
             },
