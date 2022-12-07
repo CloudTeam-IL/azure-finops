@@ -12,7 +12,7 @@ resources
 | sort by subscriptionId
 "@
 if (-not $key) {
-    $query.Replace("@@", "")
+    $query = $query.Replace("@@", "")
 }
 else {
     $tags = "tags['$($key)']"
