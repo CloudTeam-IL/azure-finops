@@ -88,8 +88,7 @@ else {
 
 $query = @"
 resources
-| where type =~ "microsoft.compute/virtualmachines"
-| where properties.extended.instanceView.powerState.code =~ 'powerstate/deallocated'
+| where tolower(type) == "microsoft.compute/virtualmachines"
 | mv-expand tags
 | where ['tags'] =~ '{"candidate":"RightSize"}'
 "@
@@ -102,7 +101,7 @@ if ($VMS.SkipToken) {
     for (; $VMS.SkipToken; $VMS = Search-AzGraph -Query $query -Subscription $Subs -SkipToken $VMS.SkipToken) {
         $VMS = $VMS | Sort-Object -Property subscriptionId
         foreach ($vm in $VMS) {
-            Write-Host "Checking $($vm.Name)" -ForegroundColor Green
+            Write-Output "Checking $($vm.Name)" -ForegroundColor Green
             if (-not $currentsub -or $currentsub -ne $vm.subscriptionId) {
                 Set-AzContext -SubscriptionId $vm.subscriptionId
                 $currentsub = $vm.subscriptionId
@@ -112,6 +111,7 @@ if ($VMS.SkipToken) {
                 Update-AzTag -ResourceId $vm.id -Tag @{"Candidate" = "Manual RightSizing" } -Operation Merge
             }
             else {
+                Write-Output $vm.id
                 RightSizeVM -vm $vm -wantedsku $wantedsku
             }
         }
@@ -119,7 +119,7 @@ if ($VMS.SkipToken) {
 }
 $VMS = $VMS | Sort-Object -Property subscriptionId
 foreach ($vm in $VMS) {
-    Write-Host "Checking $($vm.Name)" -ForegroundColor Green
+    Write-Output "Checking $($vm.Name)" -ForegroundColor Green
     if (-not $currentsub -or $currentsub -ne $vm.subscriptionId) {
         Set-AzContext -SubscriptionId $vm.subscriptionId
         $currentsub = $vm.subscriptionId
@@ -129,6 +129,7 @@ foreach ($vm in $VMS) {
         Update-AzTag -ResourceId $vm.id -Tag @{"Candidate" = "Manual RightSizing" } -Operation Merge
     }
     else {
+        Write-Output $vm.id
         RightSizeVM -vm $vm -wantedsku $wantedsku
     }
 }
